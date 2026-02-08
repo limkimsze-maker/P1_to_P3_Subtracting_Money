@@ -1,1 +1,2521 @@
 
+<!doctype html>
+<html lang="en">
+<head>
+<link rel="icon" href="./kimsze_sharp16.ico?v=20260111a" sizes="any">
+<link rel="shortcut icon" href="./kimsze_sharp16.ico?v=20260111a">
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Subtraction — Money Algorithm (Step-by-step)</title>
+
+  <!-- ✅ Always-Clear on Load (Default Build Contract) -->
+  <script>
+  (function(){
+    const ACTIVITY_ID = (window.ACTIVITY_ID || (location.origin + location.pathname));
+    try{
+      const del = [];
+      for(let i=0;i<localStorage.length;i++){
+        const k = localStorage.key(i);
+        if(!k) continue;
+        if(k === ACTIVITY_ID) del.push(k);
+        if(k.startsWith(ACTIVITY_ID+"::")) del.push(k);
+        if(k.startsWith("sls_scope::"+ACTIVITY_ID)) del.push(k);
+        if(k.startsWith("UFCO-firstSubmit::"+ACTIVITY_ID)) del.push(k);
+        if(k.startsWith("sls_unlike_payload::"+ACTIVITY_ID)) del.push(k);
+      }
+      del.forEach(k => localStorage.removeItem(k));
+      try{
+        const bc = new BroadcastChannel("xapi-state");
+        bc.postMessage({ type:"clear", activityId: ACTIVITY_ID, ts: Date.now() });
+        bc.close();
+      }catch(e){}
+    }catch(e){}
+  })();
+  </script>
+
+  <style>
+    :root{
+      --bg:#ffffff;
+      --ink:#0f172a;
+      --muted:#64748b;
+      --line:#e2e8f0;
+
+      --card:#ffffff;
+      --shadow:0 14px 30px rgba(2,6,23,.10);
+      --radius:22px;
+
+      /* Token sizes */
+      --coin: 44px;
+      --coinFont: 14px;
+      --noteW: 78px;
+      --noteH: 44px;
+
+      /* ✅ unify token “face” height so 5¢ / 10¢ / $1 align with $10 / $100 */
+      --tokenH: 44px;
+
+      /* Animation */
+      --moveDur: 1400ms;
+      --regroupDur: 1100ms;
+      --ease: cubic-bezier(.2,.85,.2,1);
+
+      /* Layout */
+      --topbarH: 62px;
+      --gap: 14px;
+      --maxW: 1320px;
+
+      /* Algorithm column alignment */
+      --colCount: 6;          /* set by JS */
+      --algoColW: 54px;
+      --algoGap: 14px;
+
+      /* ✅ Original cute lion watermark (generic + copyright-safe) */
+      --lionMark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%230f172a' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M60 18c-20 0-36 16-36 36 0 22 14 40 36 40s36-18 36-40c0-20-16-36-36-36z'/%3E%3Cpath d='M38 48c-10-2-16-10-16-20 10 2 18 8 22 16'/%3E%3Cpath d='M82 48c10-2 16-10 16-20-10 2-18 8-22 16'/%3E%3Cpath d='M48 62c4 4 8 6 12 6s8-2 12-6'/%3E%3Cpath d='M56 74c2 2 4 3 4 3s2-1 4-3'/%3E%3Ccircle cx='46' cy='56' r='2'/%3E%3Ccircle cx='74' cy='56' r='2'/%3E%3C/g%3E%3C/svg%3E");
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      overflow:auto;
+      -webkit-overflow-scrolling: touch;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    .topbar{
+      height:auto;
+      min-height: var(--topbarH);
+      border-bottom:1px solid var(--line);
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(8px);
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      padding: 10px 14px;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      padding-top: calc(10px + env(safe-area-inset-top));
+    }
+    .title{
+      display:flex;
+      align-items:baseline;
+      gap:10px;
+      font-weight:1000;
+      letter-spacing:.2px;
+      min-width: 140px;
+    }
+    .title .big{ font-size: 18px; }
+
+    .actions{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+    .pill{
+      border:1px solid var(--line);
+      background:#fff;
+      border-radius:999px;
+      padding:8px 10px;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-size:12px;
+      font-weight:1000;
+      color: var(--muted);
+      white-space:nowrap;
+    }
+    .pill strong{ color: var(--ink); }
+    .btn{
+      border:1px solid var(--line);
+      background:#fff;
+      border-radius: 14px;
+      padding: 10px 12px;
+      font-weight:1000;
+      font-size:13px;
+      cursor:pointer;
+      white-space:nowrap;
+      transition: transform .08s ease;
+      touch-action: manipulation;
+    }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{
+      background:#0f172a;
+      border-color:#0f172a;
+      color:#fff;
+    }
+    .btn:disabled{
+      opacity:.45;
+      cursor:not-allowed;
+      transform:none;
+    }
+
+    .wrap{
+      height:auto;
+      min-height: calc(100vh - var(--topbarH));
+      max-width: var(--maxW);
+      margin: 0 auto;
+      padding: 12px 14px 14px;
+      display:grid;
+      grid-template-columns: 1.55fr 1.2fr;
+      gap: var(--gap);
+      overflow: visible;
+      min-height: 0;
+    }
+
+    .card{
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      min-height:0;
+    }
+
+    .leftCard{
+      display:grid;
+      grid-template-rows: auto 1fr auto;
+      min-height:0;
+    }
+    .cardHead{
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .cardHead .h{
+      font-weight:1000;
+      letter-spacing:.2px;
+    }
+    .cardHead .sub{
+      margin-top:2px;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 900;
+    }
+
+    /* ✅ bigger question for pupils */
+    #prompt{
+      font-size: 22px;
+      line-height: 1.25;
+      font-weight: 1000;
+    }
+    @media (max-width: 640px){
+      #prompt{ font-size: 20px; }
+    }
+
+    .miniRule{
+      margin-top: 6px;
+      font-size: 12px;
+      font-weight: 1000;
+      color:#0369a1;
+      background: rgba(224,242,254,.65);
+      border: 1px dashed rgba(14,165,233,.45);
+      border-radius: 14px;
+      padding: 8px 10px;
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+    }
+
+    .matWrap{
+      padding: 12px 14px 12px;
+      min-height:0;
+    }
+    .mat{
+      position: relative;
+      height: 100%;
+      min-height: 460px;
+      border-radius: 22px;
+      border: 2px solid rgba(15,23,42,.16);
+      overflow:hidden;
+      background:#fff;
+    }
+
+    .cols{
+      position:absolute;
+      inset:0;
+      display:grid;
+      grid-template-columns: repeat(var(--cols, 2), 1fr);
+    }
+    .col{
+      background: linear-gradient(180deg, rgba(241,245,249,.95), rgba(241,245,249,.45));
+    }
+    .col.tint0{ background: linear-gradient(180deg, rgba(223,247,255,.95), rgba(223,247,255,.42)); }
+    .col.tint1{ background: linear-gradient(180deg, rgba(255,241,219,.90), rgba(255,241,219,.40)); }
+    .col.tint2{ background: linear-gradient(180deg, rgba(255,228,241,.85), rgba(255,228,241,.35)); }
+    .col.tint3{ background: linear-gradient(180deg, rgba(239,231,255,.92), rgba(239,231,255,.42)); }
+    .col.tint4{ background: linear-gradient(180deg, rgba(233,255,241,.92), rgba(233,255,241,.42)); }
+    .col.tint5{ background: linear-gradient(180deg, rgba(255,246,217,.92), rgba(255,246,217,.42)); }
+    .col.tint6{ background: linear-gradient(180deg, rgba(230,240,255,.92), rgba(230,240,255,.42)); }
+    .col.tint7{ background: linear-gradient(180deg, rgba(255,232,239,.92), rgba(255,232,239,.42)); }
+
+    body.animating .col{ background: #fff !important; }
+
+    .vSep{
+      position:absolute;
+      top:0; bottom:0;
+      width:2px;
+      background: rgba(15,23,42,.10);
+      pointer-events:none;
+    }
+    .hSep{
+      position:absolute;
+      left:0; right:0;
+      top:50%;
+      height:2px;
+      background: rgba(236,72,153,.78);
+      pointer-events:none;
+      transform: translateY(-1px);
+    }
+    .mat.together .hSep{ opacity:0; }
+    .mat.together{
+      box-shadow: inset 0 0 0 3px rgba(34,197,94,.55);
+      border-color: rgba(34,197,94,.65);
+    }
+
+    /* ✅ Hide the dot on the mat AFTER done (so no confusing extra dot) */
+    .mat.together .dotSimple{ opacity:0; }
+
+    .zones{
+      position:absolute;
+      inset:0;
+      display:grid;
+      grid-template-columns: repeat(var(--cols, 2), 1fr);
+      grid-template-rows: 1fr 1fr;
+      pointer-events:none;
+    }
+    .zone{
+      padding: 10px 10px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden;
+    }
+    .zoneInner{
+      width:100%;
+      height:100%;
+      display:grid;
+      place-items:center;
+      min-height:0;
+    }
+
+    .fitBox{ transform-origin:center; will-change: transform; }
+    .pile{ width:100%; height:100%; transform-origin:center; will-change: transform; }
+
+    /* ✅ single straight line (single column) */
+    .pileTwoCol{
+      --rowGap: 10px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:flex-end;
+      gap: var(--rowGap);
+      height: 100%;
+    }
+    .pileTwoCol[data-place^="d"]{ --rowGap: 8px; }
+    .pileTwoCol[data-place^="c"]{ --rowGap: 8px; }
+
+    .token{
+      display:inline-block;
+      user-select:none;
+      pointer-events:none;
+      position:relative;
+    }
+
+    /* ✅ normalize ALL token graphics to same “face” height */
+    .coin,
+    .noteCard,
+    .coinOct{
+      height: var(--tokenH);
+    }
+
+    /* ✅ Cross-out (for tokens taken away) */
+    .token.crossed{ opacity:.35; filter: grayscale(.25); }
+    .token.crossed::after{
+      content:"";
+      position:absolute;
+      left:-8px; right:-8px;
+      top:50%;
+      height:4px;
+      background: rgba(220,38,38,.95);
+      border-radius:999px;
+      transform: translateY(-50%) rotate(-12deg);
+      box-shadow: 0 6px 14px rgba(0,0,0,.18);
+    }
+
+    .coin{
+      width: var(--coin);
+      border-radius:50%;
+      display:grid;
+      place-items:center;
+      position:relative;
+      filter: drop-shadow(0 8px 14px rgba(2,6,23,.14));
+      overflow:hidden;
+    }
+    .coin:before{
+      content:"";
+      position:absolute; inset:0;
+      border-radius:50%;
+      background:
+        radial-gradient(circle at 30% 25%, rgba(255,255,255,.85), rgba(255,255,255,0) 40%),
+        radial-gradient(circle at 70% 75%, rgba(0,0,0,.14), rgba(0,0,0,0) 50%);
+      mix-blend-mode:overlay;
+      pointer-events:none;
+    }
+    .coin .ring{
+      position:absolute;
+      inset: calc(var(--coin) * 0.10);
+      border-radius:50%;
+      border:2px dashed rgba(15,23,42,.18);
+      pointer-events:none;
+    }
+    .coin .inner{
+      width: calc(var(--coin) * 0.76);
+      height: calc(var(--coin) * 0.76);
+      border-radius:50%;
+      display:grid;
+      place-items:center;
+      border:2px solid rgba(15,23,42,.16);
+      background:rgba(255,255,255,.35);
+      backdrop-filter: blur(3px);
+      font-weight:1000;
+      letter-spacing:.2px;
+      text-align:center;
+      line-height:1;
+      padding-top: 1px;
+    }
+    .coin .inner span{font-size: calc(var(--coinFont) * 1.05)}
+    .coin .inner small{
+      display:block;
+      font-size: 10px;
+      font-weight:1000;
+      letter-spacing:.7px;
+      opacity:.85;
+      margin-top: 2px;
+      text-transform:uppercase;
+    }
+
+    .c5{  background: radial-gradient(circle at 30% 25%, #fff, #c7f9cc 40%, #4ade80 100%); }
+    .c10{ background: radial-gradient(circle at 30% 25%, #fff, #bae6fd 40%, #38bdf8 100%); }
+
+    .noteCard{
+      width: var(--noteW);
+      border-radius: 14px;
+      border:2px solid rgba(15,23,42,.16);
+      background:
+        radial-gradient(circle at 18% 30%, rgba(255,255,255,.9), rgba(255,255,255,0) 45%),
+        linear-gradient(135deg, rgba(34,197,94,.18), rgba(14,165,233,.14));
+      box-shadow:0 10px 18px rgba(2,6,23,.10);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:1000;
+      position:relative;
+      overflow:hidden;
+      user-select:none;
+      isolation:isolate;
+      padding: 0 6px;
+      text-align:center;
+      line-height:1;
+    }
+    .noteCard:before{
+      content:"";
+      position:absolute;
+      inset: 6px;
+      border-radius: 10px;
+      border:2px dotted rgba(15,23,42,.16);
+      pointer-events:none;
+      z-index:1;
+      opacity:.95;
+    }
+    .noteCard > *{ position:relative; z-index:2; }
+    .noteCard small{
+      display:block;
+      font-size:10px;
+      opacity:.78;
+      letter-spacing:1px;
+      text-transform:uppercase;
+      text-align:center;
+      margin-top:2px;
+    }
+    .noteCard.ten{
+      background:
+        radial-gradient(circle at 18% 30%, rgba(255,255,255,.9), rgba(255,255,255,0) 45%),
+        linear-gradient(135deg, rgba(251,191,36,.18), rgba(139,92,246,.12));
+    }
+    .noteCard.fifty{
+      background:
+        radial-gradient(circle at 18% 30%, rgba(255,255,255,.9), rgba(255,255,255,0) 45%),
+        linear-gradient(135deg, rgba(239,68,68,.16), rgba(14,165,233,.12));
+    }
+    .noteCard.thou{
+      background:
+        radial-gradient(circle at 18% 30%, rgba(255,255,255,.9), rgba(255,255,255,0) 45%),
+        linear-gradient(135deg, rgba(167,139,250,.20), rgba(59,130,246,.10));
+    }
+
+    /* ✅ $1 coin resized to SAME “face” height as $10/$100 and 5¢/10¢ */
+    .coinOct{
+      width: var(--noteH);
+      display:grid;
+      place-items:center;
+      font-weight:1000;
+      border:2px solid rgba(15,23,42,.16);
+      filter: drop-shadow(0 10px 16px rgba(2,6,23,.14));
+      clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+      background:
+        radial-gradient(circle at 30% 25%, rgba(255,255,255,.95), rgba(255,255,255,0) 42%),
+        radial-gradient(circle at 70% 75%, rgba(0,0,0,.18), rgba(0,0,0,0) 55%),
+        linear-gradient(180deg, #fff7c2 0%, #fbbf24 55%, #b45309 100%);
+      position:relative;
+      user-select:none;
+      overflow:hidden;
+      isolation:isolate;
+      line-height:1;
+      text-align:center;
+      padding-top: 0;
+    }
+    .coinOct:before{
+      content:"";
+      position:absolute;
+      inset: 6px;
+      clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+      border:2px dashed rgba(15,23,42,.16);
+      opacity:.9;
+      pointer-events:none;
+    }
+    .coinOct > *{ position:relative; z-index:2; }
+    .coinOct span{ font-size: calc(var(--coinFont) * 1.00); }
+    .coinOct small{
+      display:block;
+      font-size:10px;
+      font-weight:1000;
+      letter-spacing:.7px;
+      opacity:.8;
+      margin-top:2px;
+      text-transform:uppercase;
+    }
+
+    .noteCard:after{
+      content:"";
+      position:absolute;
+      inset:0;
+      background-image: var(--lionMark);
+      background-repeat:no-repeat;
+      background-position: 6px 6px;
+      background-size: calc(var(--noteH) * 0.92) calc(var(--noteH) * 0.92);
+      opacity:.16;
+      pointer-events:none;
+      z-index:1;
+    }
+
+    /* ✅ Big black dot (not dot-in-circle) */
+    .dotSimple{
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #000;
+    }
+
+    .animLayer{
+      position: fixed;
+      inset: 0;
+      pointer-events:none;
+      z-index: 80;
+    }
+    .confettiLayer{
+      position: fixed;
+      inset: 0;
+      pointer-events:none;
+      z-index: 95;
+      overflow: hidden;
+    }
+    .ghost{
+      position: fixed;
+      left:0; top:0;
+      will-change: transform, opacity, filter;
+      pointer-events:none;
+    }
+    .movingHidden{ opacity: 0 !important; }
+
+    .eqBar{
+      padding: 12px 14px 14px;
+      border-top: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(233,243,242,.65), rgba(233,243,242,.18));
+      display:flex;
+      flex-direction: column;
+      align-items:flex-start;
+      justify-content:flex-start;
+      gap: 8px;
+    }
+    .eq{
+      font-weight: 1000;
+      letter-spacing:.2px;
+      font-size: clamp(26px, 3.2vw, 46px);
+      display:flex;
+      align-items:center;
+      gap: 12px;
+      white-space:nowrap;
+      max-width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 2px;
+    }
+    .ansPill{
+      min-width: 110px;
+      height: 54px;
+      border-radius: 16px;
+      border: 3px solid rgba(44,93,0,.35);
+      background: rgba(214,255,180,.55);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:1000;
+      font-size: 32px;
+      color:#000;
+      box-shadow: 0 10px 18px rgba(0,0,0,.12);
+      flex: 0 0 auto;
+    }
+    .eqHint{
+      font-size:12px;
+      color: var(--muted);
+      font-weight: 900;
+    }
+    .ansWords{
+      font-size: 14px;
+      font-weight: 1000;
+      color: #000;
+      line-height: 1.25;
+      border-left: 5px solid rgba(34,197,94,.55);
+      padding-left: 10px;
+      display:none;
+    }
+    .ansWords .muted{
+      color: var(--muted);
+      font-weight: 900;
+      font-size: 12px;
+      display:block;
+      margin-bottom: 2px;
+    }
+
+    .rightCol{
+      display:grid;
+      grid-template-rows: auto 1fr;
+      gap: var(--gap);
+      min-height:0;
+    }
+
+    .panelHead{
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .panelHead .h{
+      font-weight:1000;
+      letter-spacing:.2px;
+    }
+    .panelHead .small{
+      font-size:12px;
+      color: var(--muted);
+      font-weight: 900;
+      white-space:nowrap;
+    }
+
+    .panelBody{
+      display:grid;
+      grid-template-rows: 250px auto;
+      gap: 14px;
+      padding: 12px 14px 14px;
+      min-height:0;
+    }
+    .stack{ justify-items: start; }
+
+    .algoBox{
+      border-radius: 18px;
+      background:#fff;
+      border: 1px solid var(--line);
+      box-shadow: 0 10px 18px rgba(0,0,0,.08);
+      overflow: hidden;
+      display:grid;
+      place-items:center;
+      padding: 0px;
+      height: 300px;
+    }
+
+    .algoFit{
+      transform-origin: center;
+      will-change: transform;
+      transform: translateY(120px);
+    }
+
+    .pvLabels{
+      display:grid;
+      grid-template-columns: repeat(var(--colCount), var(--algoColW));
+      column-gap: var(--algoGap);
+      align-items:center;
+      justify-content:start;
+      margin-bottom: 8px;
+    }
+    .band{
+      height: 34px;
+      border-radius: 14px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:1000;
+      letter-spacing:.2px;
+      font-size: 18px;
+      user-select:none;
+    }
+    .band.dollars{
+      background: rgba(255, 228, 194, .85);
+      color:#b91c1c;
+      border: 2px solid rgba(248,113,113,.35);
+    }
+    .band.cents{
+      background: rgba(191, 219, 254, .85);
+      color:#0369a1;
+      border: 2px solid rgba(59,130,246,.28);
+    }
+
+    .stack{
+      display:grid;
+      grid-template-columns: 54px auto;
+      gap: 10px;
+      align-items:end;
+      justify-items:end;
+    }
+    .moneySign{
+      width: 54px;
+      display:flex;
+      align-items:flex-end;
+      justify-content:center;
+      font-weight:1000;
+      color:#000;
+      line-height:1;
+      font-size: 42px;
+      padding: 0;
+      transform: none;
+    }
+    .moneySign.minus{ font-size: 42px; transform: none; }
+
+    /* Borrow row (reuses carryRow styling) */
+    .carryRow{
+      display:grid;
+      grid-template-columns: repeat(var(--colCount), var(--algoColW));
+      column-gap: var(--algoGap);
+      align-items:end;
+      justify-content:start;
+      font-weight:1000;
+      white-space:nowrap;
+      font-size: 26px;
+      line-height: .9;
+      margin-bottom: 2px;
+    }
+    .carryRow span{
+      width: var(--algoColW);
+      height: 28px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .carryRow .blank{ opacity:0; }
+    .carryRow .carry{
+      background: rgba(250,204,21,.35);
+      border: 2px solid rgba(245,158,11,.6);
+      border-radius: 12px;
+      padding: 0 8px;
+      transform: translateY(2px);
+    }
+
+    .digitsCol{
+      display:grid;
+      grid-template-columns: repeat(var(--colCount), var(--algoColW));
+      column-gap: var(--algoGap);
+      align-items:end;
+      justify-content:start;
+      font-weight:1000;
+      color:#000;
+      white-space:nowrap;
+      font-size: 52px;
+      line-height: .92;
+    }
+    .digitsCol span{
+      width: var(--algoColW);
+      text-align:center;
+      display:block;
+    }
+    .digitsCol .blank{ opacity:0; }
+    .digitsCol .dotCell{
+      font-weight: 1000;
+      color:#0f172a;
+    }
+
+    .barLine{
+      height: 6px;
+      width: 100%;
+      background: #0f172a;
+      border-radius: 999px;
+      margin-top: 2px;
+    }
+
+    .resultRow{
+      display:grid;
+      grid-template-columns: repeat(var(--colCount), var(--algoColW));
+      column-gap: var(--algoGap);
+      align-items:center;
+      justify-content:start;
+      margin-top: 6px;
+    }
+    .resBox{
+      width: var(--algoColW);
+      height: 50px;
+      border-radius: 16px;
+      border: 3px solid rgba(44,93,0,.35);
+      background: rgba(214,255,180,.55);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:1000;
+      font-size: 30px;
+      color:#000;
+      box-shadow: 0 10px 18px rgba(0,0,0,.12);
+    }
+    .resBox.mystery{ color: rgba(0,0,0,.35); }
+    .resBox.blankish{
+      background: transparent;
+      border-color: transparent;
+      box-shadow:none;
+      color: transparent;
+    }
+    .resDot{
+      width: var(--algoColW);
+      height: 50px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:1000;
+      font-size: 34px;
+      color:#0f172a;
+    }
+
+    .lowerPanel{
+      border-radius: 18px;
+      background:#fff;
+      border: 1px solid var(--line);
+      box-shadow: 0 10px 18px rgba(0,0,0,.08);
+      overflow:hidden;
+    }
+
+    .stepCard{
+      border: 2px solid rgba(245,158,11,.75);
+      border-radius: 18px;
+      margin: 40px 12px 10px;
+      padding: 12px 12px;
+      display:grid;
+      gap: 6px;
+      background:#fff;
+      margin-bottom: 40px;
+    }
+    .stepTitle{
+      font-weight:1000;
+      font-size: 34px;
+      letter-spacing:.2px;
+      color: #f59e0b;
+      text-decoration: underline;
+      text-underline-offset: 6px;
+    }
+    .stepText{
+      font-weight:1000;
+      font-size: 20px;
+      color:#000;
+    }
+    .stepEq{
+      font-weight:1000;
+      font-size: 22px;
+      display:flex;
+      gap: 10px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .miniBox{
+      width: 64px;
+      height: 44px;
+      border-radius: 14px;
+      border: 3px solid rgba(44,93,0,.35);
+      background: rgba(214,255,180,.55);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:1000;
+      font-size: 26px;
+      color:#000;
+      box-shadow: 0 10px 18px rgba(0,0,0,.12);
+    }
+    .miniBox.mystery{ color: rgba(0,0,0,.35); }
+
+    .teacherWrap{
+      padding: 10px 12px 12px;
+      display:grid;
+      gap: 10px;
+    }
+    .fields{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    label{
+      font-size: 12px;
+      font-weight: 900;
+      color: var(--muted);
+      display:block;
+      margin-bottom: 6px;
+    }
+    input[type="text"], select{
+      width:100%;
+      padding: 10px 10px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      font-size: 14px;
+      font-weight: 900;
+      outline:none;
+      background:#fff;
+    }
+    .rowBtns{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+      margin-top: 2px;
+    }
+    .seg{
+      display:flex;
+      border:1px solid var(--line);
+      border-radius: 14px;
+      overflow:hidden;
+      background:#fff;
+    }
+    .seg button{
+      border:0;
+      background:transparent;
+      padding: 10px 12px;
+      font-weight:1000;
+      font-size:13px;
+      color: var(--muted);
+      cursor:pointer;
+      white-space:nowrap;
+    }
+    .seg button.active{
+      background:#0f172a;
+      color:#fff;
+    }
+    .seg button:disabled{
+      opacity:.45;
+      cursor:not-allowed;
+    }
+
+    .noteErr{
+      font-size:12px;
+      font-weight: 900;
+      color:#b91c1c;
+      background: rgba(239,68,68,.08);
+      border: 1px solid rgba(239,68,68,.25);
+      padding: 10px 12px;
+      border-radius: 14px;
+      display:none;
+    }
+
+    .randRow{
+      display:grid;
+      grid-template-columns: 1fr auto;
+      gap:10px;
+      align-items:end;
+    }
+    .randRow .btn{ width:100%; }
+
+    .childPanel{
+      margin: 0 12px 12px;
+      border-radius: 18px;
+      border: 2px dashed rgba(14,165,233,.55);
+      background: linear-gradient(180deg, rgba(224,242,254,.65), rgba(255,255,255,.9));
+      padding: 20px;
+      display:grid;
+      gap: 10px;
+    }
+    .childTitleRow{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap: wrap;
+    }
+    .childTitle{
+      font-weight:1000;
+      letter-spacing:.2px;
+      color:#0369a1;
+      font-size: 16px;
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .childBadge{
+      font-size:12px;
+      font-weight:1000;
+      color: var(--muted);
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:999px;
+      padding:6px 10px;
+      white-space:nowrap;
+    }
+    .childGrid{
+      display:grid;
+      grid-template-columns: 1fr auto;
+      gap:10px;
+      align-items:end;
+    }
+    .childMsg{
+      font-size:12px;
+      font-weight: 900;
+      border-radius: 14px;
+      padding: 10px 12px;
+      border: 1px solid transparent;
+      display:none;
+      line-height:1.25;
+    }
+    .childMsg.ok{
+      display:block;
+      color:#14532d;
+      background: rgba(34,197,94,.10);
+      border-color: rgba(34,197,94,.25);
+    }
+    .childMsg.bad{
+      display:block;
+      color:#7f1d1d;
+      background: rgba(239,68,68,.10);
+      border-color: rgba(239,68,68,.25);
+    }
+
+    @keyframes panelPulse{
+      0%{ box-shadow: 0 0 0 rgba(14,165,233,0); }
+      35%{ box-shadow: 0 0 0 6px rgba(14,165,233,.18); }
+      70%{ box-shadow: 0 0 0 0 rgba(14,165,233,0); }
+      100%{ box-shadow: 0 0 0 rgba(14,165,233,0); }
+    }
+    .pulseTeacher{
+      animation: panelPulse 900ms ease-in-out 0s 2;
+      border-color: rgba(14,165,233,.55) !important;
+    }
+    .moneyInput{
+      position: relative;
+    }
+    .moneyPrefix{
+      position:absolute;
+      left:12px;
+      top:50%;
+      transform: translateY(-50%);
+      font-weight:1000;
+      color:#0f172a;
+      opacity:.9;
+    }
+    .moneyInput input{
+      padding-left: 28px;
+    }
+
+    .credit{
+      position: fixed;
+      right: 14px;
+      bottom: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 900;
+      z-index: 5;
+    }
+
+    @media (max-width: 980px){
+      .wrap{ grid-template-columns: 1fr; }
+      .algoBox{ height: 260px; }
+      .panelBody{ grid-template-rows: 330px auto; }
+    }
+
+    @media (max-width: 640px){
+      :root{
+        --gap: 10px;
+        --algoColW: 44px;
+        --algoGap: 10px;
+        --tokenH: 44px;
+      }
+
+      .title .big{ font-size: 16px; }
+      .actions{ gap:8px; justify-content:flex-start; }
+      .pill{ font-size: 11px; padding: 6px 8px; }
+      .btn{ padding: 10px 10px; font-size: 13px; border-radius: 14px; }
+
+      .mat{ min-height: 360px; }
+
+      .panelBody{
+        grid-template-rows: auto auto;
+        gap: 12px;
+      }
+      .algoBox{
+        height: 330px;
+        min-height: 240px;
+        padding: 10px;
+      }
+
+      .digitsCol{ font-size: 40px; }
+      .moneySign, .moneySign.minus{ font-size: 36px; width: 46px; }
+      .stack{ grid-template-columns: 15px auto; gap: 0px; }
+
+      .resBox{ height: 44px; font-size: 26px; border-radius: 14px; }
+
+      .stepTitle{ font-size: 26px; }
+      .stepText{ font-size: 16px; }
+      .stepEq{ font-size: 16px; }
+      .miniBox{ width: 58px; height: 40px; font-size: 22px; }
+
+      .eq{ font-size: clamp(22px, 7vw, 38px); gap: 8px; }
+      .ansPill{ height: 46px; font-size: 26px; border-radius: 14px; }
+
+      .fields{ grid-template-columns: 1fr; }
+      .randRow{ grid-template-columns: 1fr; }
+      .rowBtns{ justify-content:flex-start; }
+      .seg{ width: 100%; }
+      .seg button{ flex: 1 1 auto; text-align:center; }
+
+      .childGrid{ grid-template-columns: 1fr; }
+      #btnChildCheck{ width: 100%; }
+
+      .credit{
+        position: static;
+        padding: 10px 12px 14px;
+        text-align: right;
+      }
+    }
+  </style>
+
+  <!-- Counter.dev (Kim Sze standard) -->
+  <script src="https://cdn.counter.dev/script.js" data-id="825e93b6-ce99-40ef-8bcc-125f13297433" data-utcoffset="8"></script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="title">
+      <span class="big">Money Subtraction</span>
+    </div>
+
+    <div class="actions">
+      <div class="pill"><span>A:</span><strong id="pillA">$12.75</strong></div>
+      <div class="pill"><span>B:</span><strong id="pillB">$8.60</strong></div>
+
+      <button class="btn" id="btnReset">↺ Reset</button>
+      <button class="btn primary" id="btnNext">Next Step ▶</button>
+      <button class="btn" id="btnDone" disabled>Done ✓</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <section class="card leftCard">
+      <div class="cardHead">
+        <div>
+          <div class="h" id="prompt">(a) You have $12.75. You spend $8.60. How much money is left?</div>
+          <div class="sub">Click <b>Next Step</b> to subtract the <b>cents</b> first, then the <b>dollars</b>. Borrow if needed.</div>
+          <div class="miniRule">✅ <span>Align the decimal dots (.) before subtracting.</span></div>
+        </div>
+      </div>
+
+      <div class="matWrap">
+        <div class="mat" id="mat">
+          <div class="cols" id="cols"></div>
+          <div class="hSep" id="hSep"></div>
+          <div class="zones" id="zones"></div>
+        </div>
+      </div>
+
+      <div class="eqBar">
+        <div class="eq">
+          <span id="eqA">$12.75</span>
+          <span>−</span>
+          <span id="eqB">$8.60</span>
+          <span>=</span>
+          <span class="ansPill" id="eqAns">$?</span>
+        </div>
+        <div class="eqHint" id="eqHint">Click Next Step</div>
+
+        <div class="ansWords" id="ansWords">
+          <span class="muted">Answer in words (Singapore style)</span>
+          <span id="ansWordsText"></span>
+        </div>
+      </div>
+    </section>
+
+    <aside class="card" id="teachCard">
+      <div class="panelHead">
+        <div class="h">Teaching Panel</div>
+        <div class="small">Align dots → Subtract → Borrow</div>
+      </div>
+
+      <div class="panelBody">
+        <div class="algoBox">
+          <div class="algoFit" id="algoFit">
+            <div class="stack">
+              <div></div>
+              <div class="pvLabels" id="pvLabels"></div>
+
+              <div></div>
+              <div class="carryRow" id="carryRow"></div>
+
+              <div class="moneySign" id="signA">$</div>
+              <div class="digitsCol" id="rowA"></div>
+
+              <div class="moneySign minus" id="signB">−$</div>
+              <div class="digitsCol" id="rowB"></div>
+
+              <div></div>
+              <div class="barLine"></div>
+
+              <div class="moneySign" id="signR">$</div>
+              <div class="resultRow" id="resRow"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="lowerPanel" id="lowerPanel">
+          <div class="stepCard" id="stepCard">
+            <div class="stepTitle" id="stepTitle">STEP 1</div>
+            <div class="stepText" id="stepText">Subtract the cents.</div>
+            <div class="stepEq">
+              <span id="stepL">?</span>
+              <span>=</span>
+              <span class="miniBox mystery" id="stepAns">?</span>
+            </div>
+          </div>
+
+          <div class="childPanel" id="childPanel">
+            <div class="childTitleRow">
+              <div class="childTitle">🧒 Child Try-It Panel</div>
+              <div class="childBadge">Try: <span id="childEq">$12.75 − $8.60</span></div>
+            </div>
+
+            <div class="childGrid">
+              <div>
+                <label>Your answer (2 d.p., e.g., 0.80, 21.35)</label>
+                <div class="moneyInput">
+                  <span class="moneyPrefix">$</span>
+                  <input id="childAns" type="text" inputmode="decimal" placeholder="0.00"/>
+                </div>
+              </div>
+              <button class="btn primary" id="btnChildCheck">Check ✅</button>
+            </div>
+
+            <div class="childMsg" id="childMsg"></div>
+          </div>
+
+          <div class="teacherWrap">
+            <div class="fields">
+              <div>
+                <label>Amount A (0–999.95)</label>
+                <input id="inA" type="text" inputmode="decimal" value="12.75"/>
+              </div>
+              <div>
+                <label>Amount B (0–999.95) (must be ≤ A)</label>
+                <input id="inB" type="text" inputmode="decimal" value="8.60"/>
+              </div>
+            </div>
+
+            <div class="randRow">
+              <div>
+                <label>Random: amount range (A)</label>
+                <select id="digitsSel">
+                  <option value="99.95">Up to $99.95</option>
+                  <option value="199.95">Up to $199.95</option>
+                  <option value="499.95">Up to $499.95</option>
+                </select>
+              </div>
+              <button class="btn" id="btnRandom">🎲 Random Amounts</button>
+            </div>
+
+            <div class="rowBtns">
+              <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button class="btn primary" id="btnApply">Apply</button>
+                <button class="btn" id="btnSwap">Swap A/B</button>
+              </div>
+
+              <div class="seg" aria-label="Display mode">
+                <button type="button" id="btnBlocks" class="active" disabled>Notes &amp; Coins</button>
+              </div>
+            </div>
+
+            <div class="noteErr" id="errBox"></div>
+            <div style="font-size:12px; color:var(--muted); font-weight:900;">
+              <span id="ruleNote"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="credit">Designed by Lim Kim Sze © 2026</div>
+  <div class="animLayer" id="animLayer"></div>
+  <div class="confettiLayer" id="confettiLayer"></div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+
+  /* =========================
+     MONEY MODEL (no 1¢)
+     - amounts are in CENTS (integer)
+     - last digit of cents is always 0 or 5 (i.e. step = 5 cents)
+     - columns shown: $100 $10 $1 . 10¢ 5¢
+     ========================= */
+  const STEP_CENTS = 5;
+  const MAX_DOLLARS = 999;
+  const MAX_CENTS = MAX_DOLLARS * 100 + 95;
+
+  const COLS = ["d100","d10","d1","dot","c10","c5"]; // left → right
+  const DOT_INDEX = COLS.indexOf("dot");
+
+  const BASE = {
+    c5:  2,   // two 5¢ make 10¢
+    c10: 10,  // ten 10¢ make $1
+    d1:  10,  // ten $1 make $10
+    d10: 10,  // ten $10 make $100
+    d100:10
+  };
+
+  const PLACE_META = {
+    d100: { label:"hundreds of dollars",  short:"$100"  },
+    d10:  { label:"tens of dollars",      short:"$10"   },
+    d1:   { label:"ones of dollars",      short:"$1"    },
+    c10:  { label:"tens of cents",        short:"10¢"   },
+    c5:   { label:"five cents",           short:"5¢"    },
+    dot:  { label:"dot",                  short:"."     },
+  };
+
+  const ui = {
+    pillA: $("pillA"), pillB: $("pillB"),
+    eqA: $("eqA"), eqB: $("eqB"), eqAns: $("eqAns"), eqHint: $("eqHint"),
+    ansWords: $("ansWords"), ansWordsText: $("ansWordsText"),
+    prompt: $("prompt"),
+    inA: $("inA"), inB: $("inB"),
+    digitsSel: $("digitsSel"), btnRandom: $("btnRandom"),
+    btnApply: $("btnApply"), btnSwap: $("btnSwap"),
+    btnBlocks: $("btnBlocks"),
+    btnReset: $("btnReset"), btnNext: $("btnNext"), btnDone: $("btnDone"),
+    mat: $("mat"), cols: $("cols"), zones: $("zones"),
+    pvLabels: $("pvLabels"),
+    carryRow: $("carryRow"),
+    rowA: $("rowA"), rowB: $("rowB"), resRow: $("resRow"),
+    algoFit: $("algoFit"),
+    stepTitle: $("stepTitle"), stepText: $("stepText"), stepL: $("stepL"),
+    stepAns: $("stepAns"),
+    animLayer: $("animLayer"),
+    confettiLayer: $("confettiLayer"),
+    ruleNote: $("ruleNote"),
+    errBox: $("errBox"),
+    childEq: $("childEq"),
+    childAns: $("childAns"),
+    btnChildCheck: $("btnChildCheck"),
+    childMsg: $("childMsg"),
+    teachCard: $("teachCard"),
+    lowerPanel: $("lowerPanel"),
+  };
+
+  /* =========================
+     Confetti
+     ========================= */
+  function burstConfetti(){
+    const layer = ui.confettiLayer;
+    if (!layer) return;
+    layer.innerHTML = "";
+
+    const W = window.innerWidth || 800;
+    const H = window.innerHeight || 600;
+    const count = 140;
+
+    for (let i=0;i<count;i++){
+      const p = document.createElement("div");
+      const size = 6 + Math.random()*8;
+      const left = Math.random() * W;
+      const top = -20 - Math.random()*H*0.25;
+
+      p.style.position = "absolute";
+      p.style.left = left + "px";
+      p.style.top = top + "px";
+      p.style.width = size + "px";
+      p.style.height = (size * (0.7 + Math.random()*0.9)) + "px";
+      p.style.borderRadius = (Math.random() < 0.25) ? "999px" : "3px";
+      p.style.opacity = "0.95";
+      p.style.transform = `rotate(${Math.random()*360}deg)`;
+
+      const hue = Math.floor(Math.random()*360);
+      p.style.background = `hsl(${hue} 90% 55%)`;
+
+      layer.appendChild(p);
+
+      const drift = (Math.random()*2 - 1) * W * 0.22;
+      const endY = H + 80 + Math.random()*120;
+      const rot = (Math.random()*2 - 1) * 980;
+      const dur = 1200 + Math.random()*900;
+      const delay = Math.random()*120;
+
+      p.animate([
+        { transform: `translate(0px, 0px) rotate(0deg)`, opacity: 1 },
+        { transform: `translate(${drift}px, ${endY}px) rotate(${rot}deg)`, opacity: 1 }
+      ], { duration: dur, delay, easing:"cubic-bezier(.2,.9,.2,1)", fill:"forwards" });
+
+      p.animate([{ opacity: 1 },{ opacity: 0 }], { duration: 450, delay: delay + dur - 350, easing:"ease-out", fill:"forwards" });
+    }
+
+    setTimeout(() => { layer.innerHTML = ""; }, 2600);
+  }
+
+  function pulseTeachingPanel(){
+    ui.teachCard.classList.remove("pulseTeacher");
+    ui.lowerPanel.classList.remove("pulseTeacher");
+    void ui.teachCard.offsetWidth;
+    ui.teachCard.classList.add("pulseTeacher");
+    ui.lowerPanel.classList.add("pulseTeacher");
+    setTimeout(() => {
+      ui.teachCard.classList.remove("pulseTeacher");
+      ui.lowerPanel.classList.remove("pulseTeacher");
+    }, 1800);
+  }
+
+  /* =========================
+     Audio (same as your add page)
+     ========================= */
+  let audioCtx = null;
+  function ensureAudio(){
+    if (audioCtx) return audioCtx;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    audioCtx = new Ctx();
+    return audioCtx;
+  }
+  function resumeAudioIfNeeded(){
+    const ctx = ensureAudio();
+    if (!ctx) return;
+    if (ctx.state === "suspended") ctx.resume().catch(()=>{});
+  }
+  window.addEventListener("pointerdown", resumeAudioIfNeeded, { passive:true });
+
+  function playClick(){
+    const ctx = ensureAudio(); if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = "square";
+    o.frequency.setValueAtTime(760, t0);
+    o.frequency.exponentialRampToValueAtTime(260, t0 + 0.03);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.22, t0 + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.07);
+    o.connect(g).connect(ctx.destination);
+    o.start(t0);
+    o.stop(t0 + 0.08);
+  }
+  function playSwoosh(){
+    const ctx = ensureAudio(); if (!ctx) return;
+    const t0 = ctx.currentTime;
+    const dur = 0.30;
+    const bufferSize = Math.floor(ctx.sampleRate * dur);
+    const buf = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i=0;i<bufferSize;i++){
+      const x = i / bufferSize;
+      const env = Math.sin(Math.PI * x);
+      data[i] = (Math.random()*2-1) * env * 0.9;
+    }
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.setValueAtTime(900, t0);
+    filter.frequency.exponentialRampToValueAtTime(220, t0 + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.20, t0 + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(filter).connect(g).connect(ctx.destination);
+    src.start(t0);
+    src.stop(t0 + dur + 0.02);
+  }
+  function playClap(){
+    const ctx = ensureAudio();
+    if (!ctx) return;
+    if (ctx.state === "suspended"){
+      ctx.resume().then(() => playClap()).catch(()=>{});
+      return;
+    }
+    const t0 = ctx.currentTime;
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.setValueAtTime(-20, t0);
+    comp.knee.setValueAtTime(18, t0);
+    comp.ratio.setValueAtTime(6, t0);
+    comp.attack.setValueAtTime(0.003, t0);
+    comp.release.setValueAtTime(0.12, t0);
+    comp.connect(ctx.destination);
+
+    const mkBurst = (offset, dur, f0, q, gain) => {
+      const start = t0 + offset;
+      const len = Math.max(0.02, dur);
+      const bufferSize = Math.floor(ctx.sampleRate * len);
+      const buf = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i=0;i<bufferSize;i++){
+        const x = i / bufferSize;
+        const env = Math.pow(1 - x, 2.6);
+        data[i] = (Math.random()*2 - 1) * env;
+      }
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const bp = ctx.createBiquadFilter();
+      bp.type = "bandpass";
+      bp.frequency.setValueAtTime(f0, start);
+      bp.Q.setValueAtTime(q, start);
+      const hp = ctx.createBiquadFilter();
+      hp.type = "highpass";
+      hp.frequency.setValueAtTime(500, start);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.exponentialRampToValueAtTime(gain, start + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + len);
+      src.connect(bp); bp.connect(hp); hp.connect(g); g.connect(comp);
+      src.start(start);
+      src.stop(start + len + 0.01);
+    };
+
+    mkBurst(0.00, 0.13, 1600, 1.1, 0.70);
+    mkBurst(0.03, 0.14, 1200, 1.0, 0.55);
+    mkBurst(0.07, 0.11, 2200, 1.4, 0.40);
+    mkBurst(0.10, 0.10, 900,  0.9, 0.30);
+  }
+
+  /* =========================
+     Helpers
+     ========================= */
+  function cssVar(name){
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || "ease";
+  }
+  function cssMs(name){
+    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    if (v.endsWith("ms")) return parseFloat(v);
+    if (v.endsWith("s")) return parseFloat(v) * 1000;
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : 900;
+  }
+  const wait = (ms)=> new Promise(res => setTimeout(res, ms));
+
+  function showErr(msg){
+    ui.errBox.style.display = msg ? "block" : "none";
+    ui.errBox.textContent = msg || "";
+  }
+
+  function clampCents(n){
+    if (!Number.isFinite(n)) n = 0;
+    n = Math.round(n / STEP_CENTS) * STEP_CENTS;
+    n = Math.max(0, Math.min(MAX_CENTS, n));
+    const ones = n % 10;
+    if (ones !== 0 && ones !== 5){
+      n = Math.round(n / 5) * 5;
+    }
+    return n;
+  }
+
+  function formatMoney(cents){
+    cents = clampCents(cents);
+    const dollars = Math.floor(cents / 100);
+    const cc = (cents % 100).toString().padStart(2,"0");
+    return `${dollars}.${cc}`;
+  }
+  function formatMoneyWith$(cents){
+    return `$${formatMoney(cents)}`;
+  }
+
+  function parseMoneyToCents(raw){
+    const s0 = String(raw ?? "").trim();
+    if (!s0) return { cents: 0, ok:true, adjusted:false };
+
+    const s = s0.replace(/\$/g,"").replace(/,/g,"").replace(/\s+/g,"");
+    const m = s.match(/^(\d{1,4})(?:\.(\d{0,2}))?$/);
+    if (!m) return { cents: 0, ok:false, adjusted:false };
+
+    const dollars = parseInt(m[1],10);
+    let centsPart = (m[2] ?? "");
+    if (centsPart.length === 0) centsPart = "00";
+    if (centsPart.length === 1) centsPart = centsPart + "0";
+    const cc = parseInt(centsPart,10);
+
+    if (!Number.isFinite(dollars) || !Number.isFinite(cc)) return { cents:0, ok:false, adjusted:false };
+    if (dollars > MAX_DOLLARS) return { cents: MAX_CENTS, ok:true, adjusted:true };
+
+    let total = dollars*100 + cc;
+    total = Math.max(0, Math.min(MAX_CENTS, total));
+
+    const snapped = clampCents(total);
+    const adjusted = (snapped !== total) || ((snapped % 10) !== 0 && (snapped % 10) !== 5);
+
+    return { cents: snapped, ok:true, adjusted };
+  }
+
+  /* =========================
+     Token factory (notes & coins)
+     ========================= */
+  function makeCoinEl(numText, unitText, colorClass){
+    const c = document.createElement("div");
+    c.className = "coin " + (colorClass || "");
+    const ring = document.createElement("div"); ring.className = "ring";
+    const inner = document.createElement("div"); inner.className = "inner";
+    const sp = document.createElement("span"); sp.textContent = numText;
+    const sm = document.createElement("small"); sm.textContent = unitText;
+    inner.appendChild(sp);
+    inner.appendChild(sm);
+    c.appendChild(ring);
+    c.appendChild(inner);
+    return c;
+  }
+
+  function makeNoteEl(mainText, smallText, extraClass){
+    const n = document.createElement("div");
+    n.className = "noteCard " + (extraClass || "");
+    const wrap = document.createElement("div");
+    const big = document.createElement("div");
+    big.textContent = mainText;
+    big.style.fontSize = "16px";
+    big.style.fontWeight = "1000";
+    const sm = document.createElement("small");
+    sm.textContent = smallText || "";
+    wrap.appendChild(big);
+    if (smallText) wrap.appendChild(sm);
+    n.appendChild(wrap);
+    return n;
+  }
+
+  function makeOctCoinEl(){
+    const o = document.createElement("div");
+    o.className = "coinOct";
+    const wrap = document.createElement("div");
+    const big = document.createElement("span");
+    big.textContent = "$1";
+    const sm = document.createElement("small");
+    sm.textContent = "coin";
+    wrap.appendChild(big);
+    wrap.appendChild(sm);
+    o.appendChild(wrap);
+    return o;
+  }
+
+  function makeTokenEl(placeKey){
+    const el = document.createElement("div");
+    el.className = "token";
+    el.dataset.place = placeKey;
+
+    let graphic = null;
+    if (placeKey === "c5")  graphic = makeCoinEl("5", "¢", "c5");
+    if (placeKey === "c10") graphic = makeCoinEl("10", "¢", "c10");
+    if (placeKey === "d1")  graphic = makeOctCoinEl();
+    if (placeKey === "d10") graphic = makeNoteEl("$10", "note", "ten");
+    if (placeKey === "d100") graphic = makeNoteEl("$100", "note", "fifty");
+    if (!graphic) graphic = makeCoinEl("?", "", "");
+    el.appendChild(graphic);
+    return el;
+  }
+
+  /* =========================
+     Pile helpers
+     ========================= */
+  function flattenTokens(pileEl){
+    if (!pileEl) return [];
+    return Array.from(pileEl.children).filter(n => n && n.nodeType === 1 && n.classList.contains("token"));
+  }
+  function repackPile(pileEl, placeKey){
+    const tokens = flattenTokens(pileEl);
+    pileEl.innerHTML = "";
+    pileEl.dataset.place = placeKey;
+    pileEl.className = "pile pileTwoCol";
+    for (const t of tokens) pileEl.appendChild(t);
+  }
+  function fillPile(pileEl, placeKey, count){
+    pileEl.innerHTML = "";
+    pileEl.dataset.place = placeKey;
+    count = Math.max(0, Math.min(9, count|0));
+    pileEl.className = "pile pileTwoCol";
+    for (let i=0;i<count;i++){
+      pileEl.appendChild(makeTokenEl(placeKey));
+    }
+  }
+
+  /* =========================
+     Fit helpers
+     ========================= */
+  function fitAllPiles(){
+    const zones = ui.zones.querySelectorAll(".zone");
+    zones.forEach(z => {
+      const fit = z.querySelector(".fitBox");
+      if (!fit) return;
+      fit.style.transform = "scale(1)";
+      const availW = z.clientWidth - 10;
+      const availH = z.clientHeight - 10;
+      const contentW = fit.scrollWidth;
+      const contentH = fit.scrollHeight;
+      if (contentW < 1 || contentH < 1) return;
+      const s = Math.min(1, availW / contentW, availH / contentH);
+      fit.style.transform = `scale(${s})`;
+    });
+  }
+  function fitAlgo(){
+    ui.algoFit.style.transform = "scale(1)";
+    const box = ui.algoFit.parentElement;
+    const availW = box.clientWidth - 18;
+    const availH = box.clientHeight - 18;
+    const w = ui.algoFit.scrollWidth;
+    const h = ui.algoFit.scrollHeight;
+    if (w < 1 || h < 1) return;
+    const s = Math.min(1, availW / w, availH / h);
+    ui.algoFit.style.transform = `scale(${s})`;
+  }
+
+  /* =========================
+     Money words (SG style)
+     ========================= */
+  const ONES = ["zero","one","two","three","four","five","six","seven","eight","nine"];
+  const TEENS = ["ten","eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen"];
+  const TENS = ["","", "twenty","thirty","forty","fifty","sixty","seventy","eighty","ninety"];
+  function twoDigitWords(n){
+    n = n % 100;
+    if (n < 10) return ONES[n];
+    if (n < 20) return TEENS[n-10];
+    const t = Math.floor(n/10), o = n%10;
+    return o === 0 ? TENS[t] : `${TENS[t]}-${ONES[o]}`;
+  }
+  function numberToWordsSG(n){
+    n = Math.floor(Math.abs(n));
+    if (n === 0) return "zero";
+    if (n < 100) return twoDigitWords(n);
+
+    const joinHundreds = (x) => {
+      const h = Math.floor(x/100);
+      const r = x % 100;
+      if (h === 0) return twoDigitWords(r);
+      if (r === 0) return `${ONES[h]} hundred`;
+      return `${ONES[h]} hundred and ${twoDigitWords(r)}`;
+    };
+
+    if (n < 1000) return joinHundreds(n);
+
+    const thousands = Math.floor(n / 1000);
+    const rem = n % 1000;
+
+    const thouWords = (thousands < 10) ? `${ONES[thousands]} thousand` : `${twoDigitWords(thousands)} thousand`;
+    if (rem === 0) return thouWords;
+
+    const isExactHundreds = (rem % 100 === 0);
+    const connector = (rem < 100 || isExactHundreds) ? " and " : ", ";
+
+    let remWords = "";
+    if (rem < 100) remWords = twoDigitWords(rem);
+    else remWords = joinHundreds(rem);
+
+    return thouWords + connector + remWords;
+  }
+  function moneyToWordsSG(cents){
+    cents = clampCents(cents);
+    const dollars = Math.floor(cents/100);
+    const cc = cents % 100;
+
+    const dWord = numberToWordsSG(dollars);
+    const dollarUnit = (dollars === 1) ? "dollar" : "dollars";
+
+    const cWord = numberToWordsSG(cc);
+    const centUnit = (cc === 1) ? "cent" : "cents";
+
+    return `${dWord} ${dollarUnit} and ${cWord} ${centUnit}`;
+  }
+
+  /* =========================
+     Story prompts (subtraction)
+     ========================= */
+  const STORY_TEMPLATES = [
+    (a,b)=>`(a) You have ${formatMoneyWith$(a)}. You spend ${formatMoneyWith$(b)}. How much money is left?`,
+    (a,b)=>`(a) A drink costs ${formatMoneyWith$(b)}. You pay with ${formatMoneyWith$(a)}. How much change do you get?`,
+    (a,b)=>`(a) You saved ${formatMoneyWith$(a)}. You used ${formatMoneyWith$(b)}. How much is left?`,
+    (a,b)=>`(a) You had ${formatMoneyWith$(a)}. You donated ${formatMoneyWith$(b)}. How much remains?`,
+    (a,b)=>`(a) A toy costs ${formatMoneyWith$(b)}. You have ${formatMoneyWith$(a)}. How much change do you get?`,
+  ];
+  function pickStory(a,b){
+    const fn = STORY_TEMPLATES[Math.floor(Math.random()*STORY_TEMPLATES.length)];
+    return fn(a,b);
+  }
+
+  /* =========================
+     Counts/digits helpers
+     ========================= */
+  function countsFromCents(cents){
+    cents = clampCents(cents);
+    const dollars = Math.floor(cents/100);
+    const cc = cents % 100;
+    const c10 = Math.floor(cc/10);
+    const c1 = cc % 10;
+    return {
+      d100:  Math.floor(dollars/100)%10,
+      d10:   Math.floor(dollars/10)%10,
+      d1:    dollars%10,
+      c10:   c10,
+      c5:    (c1 === 5) ? 1 : 0,
+      dot:   0
+    };
+  }
+  function digitsFromCents(cents){
+    cents = clampCents(cents);
+    const dollars = Math.floor(cents/100);
+    const cc = cents % 100;
+    const c10 = Math.floor(cc/10);
+    const c1 = cc % 10;
+    return {
+      d100:  Math.floor(dollars/100)%10,
+      d10:   Math.floor(dollars/10)%10,
+      d1:    dollars%10,
+      c10:   c10,
+      c5:    c1, // 0 or 5
+      dot:   "."
+    };
+  }
+
+  /* =========================
+     Mat zones
+     ========================= */
+  const zoneMap = { top:{}, bottom:{} };
+
+  /* =========================
+     State
+     ========================= */
+  let A = 1275; // minuend
+  let B = 860;  // subtrahend
+
+  let step = 0;
+  let borrowMarks = {};       // placeKey -> 1 if borrowed from this place
+  let resultDigits = {};      // placeKey -> digit shown
+  let workCountsA = null;     // mutable counts of A after borrowing
+  let workDigitsA = null;     // mutable digits for algorithm row A (after borrowing)
+
+  const STEP_ORDER = ["c5","c10","d1","d10","d100"];
+
+  /* =========================
+     Render algorithm + mat
+     ========================= */
+  function renderAlgorithm(aC, bC){
+    ui.algoFit.style.setProperty("--colCount", COLS.length);
+
+    ui.pvLabels.innerHTML = "";
+    const dollarsSpan = document.createElement("div");
+    dollarsSpan.className = "band dollars";
+    dollarsSpan.textContent = "dollars";
+    dollarsSpan.style.gridColumn = `1 / ${DOT_INDEX+1}`;
+    ui.pvLabels.appendChild(dollarsSpan);
+
+    const centsSpan = document.createElement("div");
+    centsSpan.className = "band cents";
+    centsSpan.textContent = "cents";
+    centsSpan.style.gridColumn = `${DOT_INDEX+2} / ${COLS.length+1}`;
+    ui.pvLabels.appendChild(centsSpan);
+
+    // build rows from *mutable* digitsA (workDigitsA), so borrowing shows up
+    const db = digitsFromCents(bC);
+
+    const dollarsA = Math.floor(aC/100);
+    const dollarsB = Math.floor(bC/100);
+
+    const firstDollarColIndexA = (() => {
+      if (dollarsA >= 100)  return 0;
+      if (dollarsA >= 10)   return 1;
+      return 2;
+    })();
+    const firstDollarColIndexB = (() => {
+      if (dollarsB >= 100)  return 0;
+      if (dollarsB >= 10)   return 1;
+      return 2;
+    })();
+
+    const makeRowSpans = (digitsMap, firstDollarColIndex) => {
+      const out = [];
+      COLS.forEach((k, idx) => {
+        if (k === "dot"){
+          out.push({ ch: ".", blank:false, isDot:true });
+          return;
+        }
+        if (idx < DOT_INDEX){
+          const val = digitsMap[k] ?? 0;
+          const blank = (idx < firstDollarColIndex) && (val === 0);
+          out.push({ ch: String(val), blank });
+        } else {
+          const val = digitsMap[k];
+          out.push({ ch: String(val), blank:false });
+        }
+      });
+      return out;
+    };
+
+    const digitsAForRow = workDigitsA || digitsFromCents(aC);
+    const ra = makeRowSpans(digitsAForRow, firstDollarColIndexA);
+    const rb = makeRowSpans(db, firstDollarColIndexB);
+
+    ui.rowA.innerHTML = "";
+    ra.forEach(obj => {
+      const sp = document.createElement("span");
+      sp.textContent = obj.ch;
+      if (obj.blank) sp.classList.add("blank");
+      if (obj.isDot) sp.classList.add("dotCell");
+      ui.rowA.appendChild(sp);
+    });
+
+    ui.rowB.innerHTML = "";
+    rb.forEach(obj => {
+      const sp = document.createElement("span");
+      sp.textContent = obj.ch;
+      if (obj.blank) sp.classList.add("blank");
+      if (obj.isDot) sp.classList.add("dotCell");
+      ui.rowB.appendChild(sp);
+    });
+
+    ui.carryRow.innerHTML = "";
+    COLS.forEach((k) => {
+      const sp = document.createElement("span");
+      sp.textContent = "";
+      sp.classList.add("blank");
+      sp.dataset.place = k;
+      ui.carryRow.appendChild(sp);
+    });
+
+    ui.resRow.innerHTML = "";
+    COLS.forEach((k) => {
+      if (k === "dot"){
+        const d = document.createElement("div");
+        d.className = "resDot";
+        d.textContent = ".";
+        ui.resRow.appendChild(d);
+        return;
+      }
+      const b = document.createElement("div");
+      b.className = "resBox mystery";
+      b.id = "res_" + k;
+      b.textContent = "?";
+      ui.resRow.appendChild(b);
+    });
+
+    requestAnimationFrame(fitAlgo);
+  }
+
+  function updateBorrowDisplay(){
+    const spans = Array.from(ui.carryRow.children);
+    COLS.forEach((k, idx) => {
+      const sp = spans[idx];
+      if (!sp) return;
+      if (k === "dot"){
+        sp.textContent = "";
+        sp.className = "blank";
+        return;
+      }
+      const v = borrowMarks[k] || 0;
+      if (!v){
+        sp.textContent = "";
+        sp.className = "blank";
+      } else {
+        sp.textContent = "1";
+        sp.className = "carry";
+      }
+    });
+  }
+
+  function renderAlgoResults(){
+    const diff = clampCents(A - B);
+    const dollarsDiff = Math.floor(diff/100);
+    const ds = digitsFromCents(diff);
+
+    const firstDollarColIndexD = (() => {
+      if (dollarsDiff >= 100)  return 0;
+      if (dollarsDiff >= 10)   return 1;
+      return 2;
+    })();
+
+    COLS.forEach((k, idx) => {
+      if (k === "dot") return;
+      const box = document.getElementById("res_" + k);
+      const v = resultDigits[k];
+      if (!box) return;
+
+      if (v === null || v === undefined){
+        box.textContent = "?";
+        box.classList.add("mystery");
+        box.classList.remove("blankish");
+        return;
+      }
+
+      if (idx < DOT_INDEX){
+        const showBlank = (idx < firstDollarColIndexD) && (v === 0);
+        if (showBlank){
+          box.textContent = "";
+          box.classList.add("blankish");
+          box.classList.remove("mystery");
+        } else {
+          box.textContent = String(v);
+          box.classList.remove("mystery");
+          box.classList.remove("blankish");
+        }
+        return;
+      }
+
+      box.textContent = String(v);
+      box.classList.remove("mystery");
+      box.classList.remove("blankish");
+    });
+
+    const done = STEP_ORDER.every(k => resultDigits[k] !== null);
+    if (done){
+      ui.eqAns.textContent = formatMoneyWith$(diff);
+      ui.eqHint.textContent = "Done!";
+      ui.btnDone.disabled = false;
+      ui.btnNext.disabled = true;
+      ui.mat.classList.add("together");
+
+      ui.ansWordsText.textContent = moneyToWordsSG(diff);
+      ui.ansWords.style.display = "block";
+    } else {
+      ui.eqAns.textContent = "$?";
+      ui.ansWords.style.display = "none";
+    }
+  }
+
+  function updateAlgoHighlight(){
+    ui.resRow.querySelectorAll(".resBox").forEach(b => {
+      b.style.outline = "none";
+      b.style.outlineOffset = "0px";
+    });
+    const currentPlace = STEP_ORDER[step] || null;
+    if (currentPlace){
+      const target = document.getElementById("res_" + currentPlace);
+      if (target){
+        target.style.outline = "3px dashed rgba(236,72,153,.85)";
+        target.style.outlineOffset = "6px";
+      }
+    }
+  }
+
+  function renderStepCard(){
+    const p = STEP_ORDER[step] || null;
+    if (!p){
+      ui.stepTitle.textContent = "DONE";
+      ui.stepText.textContent = "All taking away is finished.";
+      ui.stepL.textContent = "Great!";
+      ui.stepAns.textContent = "✓";
+      ui.stepAns.classList.remove("mystery");
+      return;
+    }
+
+    ui.stepTitle.textContent = `STEP ${step + 1}`;
+    const a = workCountsA || countsFromCents(A);
+    const b = countsFromCents(B);
+
+    if (p === "c5"){
+      ui.stepText.textContent = "Subtract the ones of cents (0 or 5).";
+      ui.stepL.textContent = `${(a.c5||0)*5}¢ − ${(b.c5||0)*5}¢`;
+    } else if (p === "c10"){
+      ui.stepText.textContent = "Subtract the tens of cents.";
+      ui.stepL.textContent = `${a.c10||0} tens − ${b.c10||0} tens`;
+    } else if (p === "d1"){
+      ui.stepText.textContent = "Subtract the dollars (ones).";
+      ui.stepL.textContent = `${a.d1||0} − ${b.d1||0}`;
+    } else if (p === "d10"){
+      ui.stepText.textContent = "Subtract the dollars (tens).";
+      ui.stepL.textContent = `${a.d10||0} − ${b.d10||0}`;
+    } else {
+      ui.stepText.textContent = "Subtract the dollars (hundreds).";
+      ui.stepL.textContent = `${a.d100||0} − ${b.d100||0}`;
+    }
+
+    const v = resultDigits[p];
+    if (v === null){
+      ui.stepAns.textContent = "?";
+      ui.stepAns.classList.add("mystery");
+    } else {
+      ui.stepAns.textContent = (p === "c5") ? `${v}¢` : String(v);
+      ui.stepAns.classList.remove("mystery");
+    }
+  }
+
+  /* =========================
+     Mat render
+     ========================= */
+  function renderAll(){
+    A = clampCents(A);
+    B = clampCents(B);
+
+    ui.pillA.textContent = formatMoneyWith$(A);
+    ui.pillB.textContent = formatMoneyWith$(B);
+    ui.eqA.textContent = formatMoneyWith$(A);
+    ui.eqB.textContent = formatMoneyWith$(B);
+
+    ui.prompt.textContent = pickStory(A, B);
+    ui.childEq.textContent = `${formatMoneyWith$(A)} − ${formatMoneyWith$(B)}`;
+
+    ui.ruleNote.textContent =
+      "Tip: Always line up the decimal dots (.) . Borrow when you cannot subtract. " +
+      "Borrow 1 ten to make 10 ones. Borrow $1 to make 10 ten-cents. Borrow 1 ten-cent to make 2 five-cents.";
+
+    ui.cols.style.setProperty("--cols", COLS.length);
+    ui.zones.style.setProperty("--cols", COLS.length);
+
+    ui.cols.innerHTML = "";
+    COLS.forEach((k, idx) => {
+      const d = document.createElement("div");
+      d.className = "col tint" + (idx % 8);
+      ui.cols.appendChild(d);
+    });
+
+    ui.mat.querySelectorAll(".vSep").forEach(el => el.remove());
+    for (let i=1;i<COLS.length;i++){
+      const v = document.createElement("div");
+      v.className = "vSep";
+      v.style.left = `calc(${(i/COLS.length)*100}% - 1px)`;
+      ui.mat.appendChild(v);
+    }
+
+    ui.zones.innerHTML = "";
+    zoneMap.top = {};
+    zoneMap.bottom = {};
+
+    const makeZone = (rowKey, placeKey) => {
+      const z = document.createElement("div");
+      z.className = "zone";
+      z.dataset.row = rowKey;
+      z.dataset.place = placeKey;
+
+      const inner = document.createElement("div");
+      inner.className = "zoneInner";
+
+      const fit = document.createElement("div");
+      fit.className = "fitBox";
+
+      const pile = document.createElement("div");
+      pile.className = "pile pileTwoCol";
+      pile.dataset.place = placeKey;
+
+      fit.appendChild(pile);
+      inner.appendChild(fit);
+      z.appendChild(inner);
+
+      zoneMap[rowKey][placeKey] = { zone:z, pile };
+      return z;
+    };
+
+    COLS.forEach(k => ui.zones.appendChild(makeZone("top", k)));
+    COLS.forEach(k => ui.zones.appendChild(makeZone("bottom", k)));
+
+    const ca = countsFromCents(A);
+    const cb = countsFromCents(B);
+
+    COLS.forEach(k => {
+      if (k === "dot") return;
+      fillPile(zoneMap.top[k].pile, k, ca[k] ?? 0);
+      fillPile(zoneMap.bottom[k].pile, k, cb[k] ?? 0);
+    });
+
+    resetProcess();
+
+    requestAnimationFrame(() => {
+      fitAllPiles();
+      fitAlgo();
+    });
+  }
+
+  function resetChildPanel(){
+    ui.childEq.textContent = `${formatMoneyWith$(A)} − ${formatMoneyWith$(B)}`;
+    ui.childAns.value = "";
+    ui.childMsg.className = "childMsg";
+    ui.childMsg.style.display = "none";
+    ui.childMsg.textContent = "";
+  }
+
+  function resetProcess(){
+    step = 0;
+    borrowMarks = {};
+    workCountsA = countsFromCents(A);
+    workDigitsA = digitsFromCents(A);
+
+    resultDigits = {};
+    COLS.forEach(k => resultDigits[k] = (k === "dot") ? "." : null);
+
+    ui.eqAns.textContent = "$?";
+    ui.eqHint.textContent = "Click Next Step";
+    ui.ansWords.style.display = "none";
+    ui.ansWordsText.textContent = "";
+    ui.btnDone.disabled = true;
+    ui.btnNext.disabled = false;
+    ui.mat.classList.remove("together");
+
+    renderAlgorithm(A, B);
+    updateBorrowDisplay();
+    updateAlgoHighlight();
+    renderStepCard();
+    renderAlgoResults();
+    resetChildPanel();
+  }
+
+  /* =========================
+     Borrow logic (token conversion)
+     ========================= */
+  function nextHigherPlace(p){
+    if (p === "c5")  return "c10";
+    if (p === "c10") return "d1";
+    if (p === "d1")  return "d10";
+    if (p === "d10") return "d100";
+    return null;
+  }
+
+  function expandCountForBorrow(fromHigher, toLower){
+    // borrow 1 from higher place → create these many tokens in lower place
+    if (fromHigher === "c10" && toLower === "c5") return 2;   // 10¢ -> 2×5¢
+    if (fromHigher === "d1"  && toLower === "c10") return 10; // $1  -> 10×10¢
+    if (fromHigher === "d10" && toLower === "d1") return 10;  // $10 -> 10×$1
+    if (fromHigher === "d100"&& toLower === "d10") return 10; // $100-> 10×$10
+    return 0;
+  }
+
+  async function borrowOne(fromHigher, toLower){
+    // ensure there is 1 token in fromHigher (or borrow further up recursively)
+    const higher = fromHigher;
+    if ((workCountsA[higher] || 0) <= 0){
+      const higher2 = nextHigherPlace(higher);
+      if (!higher2) return false; // cannot borrow
+      // borrow to replenish "higher"
+      const ok = await borrowOne(higher2, higher);
+      if (!ok) return false;
+    }
+
+    // Now we have at least 1 in higher; remove 1 token visually
+    const higherPile = zoneMap.top[higher].pile;
+    const tokens = Array.from(higherPile.querySelectorAll(`.token[data-place="${higher}"]`));
+    if (tokens.length <= 0) return false;
+
+    document.body.classList.add("animating");
+    resumeAudioIfNeeded();
+    playSwoosh();
+
+    // mark borrow shown above this higher column
+    borrowMarks[higher] = 1;
+    updateBorrowDisplay();
+
+    // remove one token from higher pile (simple cross + fade)
+    const t = tokens[tokens.length - 1];
+    t.classList.add("crossed");
+    await wait(220);
+    t.remove();
+    repackPile(higherPile, higher);
+
+    // update working counts/digits: subtract 1 at higher
+    workCountsA[higher] = (workCountsA[higher] || 0) - 1;
+    // update digits for algorithm (for c5 it's special; we keep digitsA.c5 as 0/5 later)
+    if (higher === "c10") workDigitsA.c10 = workCountsA.c10;
+    if (higher === "d1")  workDigitsA.d1  = workCountsA.d1;
+    if (higher === "d10") workDigitsA.d10 = workCountsA.d10;
+    if (higher === "d100")workDigitsA.d100= workCountsA.d100;
+
+    // add expanded tokens to lower pile
+    const addN = expandCountForBorrow(higher, toLower);
+    const lowerPile = zoneMap.top[toLower].pile;
+    for (let i=0;i<addN;i++){
+      lowerPile.appendChild(makeTokenEl(toLower));
+    }
+    repackPile(lowerPile, toLower);
+
+    // update working counts/digits for lower
+    workCountsA[toLower] = (workCountsA[toLower] || 0) + addN;
+    if (toLower === "c5"){
+      // c5 count is 0/1 normally, but during work can be 0,1,2,3...
+      // digits display later uses final digit; keep algorithm's c5 digit from final value only
+    } else if (toLower === "c10"){
+      workDigitsA.c10 = workCountsA.c10;
+    } else if (toLower === "d1"){
+      workDigitsA.d1 = workCountsA.d1;
+    } else if (toLower === "d10"){
+      workDigitsA.d10 = workCountsA.d10;
+    }
+
+    // refresh algorithm row A (so pupils see the borrowed-from digit reduced)
+    renderAlgorithm(A, B);
+
+    document.body.classList.remove("animating");
+    fitAllPiles();
+    fitAlgo();
+    return true;
+  }
+
+  /* =========================
+     Cross-out removal animation (take away)
+     ========================= */
+  async function crossOutAndRemove(pileEl, placeKey, count){
+    if (count <= 0) return;
+    const tokens = Array.from(pileEl.querySelectorAll(`.token[data-place="${placeKey}"]`));
+    const take = tokens.slice(-count);
+    if (take.length < count) return;
+
+    resumeAudioIfNeeded();
+    playClick();
+
+    // cross them first
+    take.forEach(t => t.classList.add("crossed"));
+    await wait(420);
+
+    // remove
+    take.forEach(t => t.remove());
+    repackPile(pileEl, placeKey);
+  }
+
+  /* =========================
+     Core subtraction steps
+     ========================= */
+  let busy = false;
+
+  function ensureNonNegative(){
+    if (B > A){
+      showErr("For subtraction, Amount B must be less than or equal to Amount A (no negative answers).");
+      return false;
+    }
+    return true;
+  }
+
+  function computeFinalDigitsFromWork(){
+    // After all steps, workCountsA holds remaining tokens in each place (with c5 in units of 5¢)
+    const out = {};
+    out.c5  = (workCountsA.c5 || 0) * 5;      // show as 0 or 5
+    out.c10 = (workCountsA.c10 || 0);         // tens of cents
+    out.d1  = (workCountsA.d1 || 0);
+    out.d10 = (workCountsA.d10 || 0);
+    out.d100= (workCountsA.d100 || 0);
+    return out;
+  }
+
+  async function doNextStep(){
+    if (busy) return;
+    if (!ensureNonNegative()) return;
+
+    const p = STEP_ORDER[step];
+    if (!p) return;
+
+    busy = true;
+
+    const bCounts = countsFromCents(B);
+    const need = bCounts[p] || 0;
+
+    // Ensure we have enough in A at this place, else borrow
+    while ((workCountsA[p] || 0) < need){
+      const higher = nextHigherPlace(p);
+      if (!higher){
+        showErr("Cannot borrow anymore. Please ensure B ≤ A.");
+        busy = false;
+        return;
+      }
+      const ok = await borrowOne(higher, p);
+      if (!ok){
+        showErr("Cannot borrow anymore. Please ensure B ≤ A.");
+        busy = false;
+        return;
+      }
+    }
+
+    // Take away (cross out and remove) from A top pile
+    const topPile = zoneMap.top[p].pile;
+    await crossOutAndRemove(topPile, p, need);
+
+    // Update workCountsA after removing
+    workCountsA[p] = (workCountsA[p] || 0) - need;
+
+    // Update result digit for this place
+    if (p === "c5"){
+      // remaining c5 count should end 0 or 1 (but safe clamp)
+      const rem = Math.max(0, workCountsA.c5 || 0);
+      resultDigits.c5 = (rem % 2) * 5; // show 0 or 5
+      // normalize actual stored count to 0 or 1
+      workCountsA.c5 = (rem % 2);
+    } else {
+      resultDigits[p] = Math.max(0, workCountsA[p] || 0);
+      // keep digitsA consistent for algorithm row after subtraction in this column
+      if (p === "c10") workDigitsA.c10 = workCountsA.c10;
+      if (p === "d1")  workDigitsA.d1  = workCountsA.d1;
+      if (p === "d10") workDigitsA.d10 = workCountsA.d10;
+      if (p === "d100")workDigitsA.d100= workCountsA.d100;
+    }
+
+    // Refresh algorithm visuals (row A may have changed from borrow; result row fills in)
+    renderAlgorithm(A, B);
+    updateBorrowDisplay();
+    renderAlgoResults();
+    updateAlgoHighlight();
+    renderStepCard();
+
+    fitAllPiles();
+    fitAlgo();
+
+    step += 1;
+
+    // If finished all places, show final and “together”
+    if (STEP_ORDER.every(k => resultDigits[k] !== null)){
+      ui.btnDone.disabled = false;
+      ui.btnNext.disabled = true;
+      ui.mat.classList.add("together");
+      playClap();
+      burstConfetti();
+    }
+
+    busy = false;
+  }
+
+  /* =========================
+     Random (guarantee B ≤ A)
+     ========================= */
+  function randInt(min, max){ return Math.floor(min + Math.random() * (max - min + 1)); }
+  function randomAmountCents(maxDollarsFloat){
+    const maxC = Math.min(MAX_CENTS, Math.round(parseFloat(maxDollarsFloat || "999.95") * 100));
+    const steps = Math.floor(maxC / STEP_CENTS);
+    return clampCents(randInt(0, steps) * STEP_CENTS);
+  }
+
+  function applyNumbers(aCents, bCents){
+    A = clampCents(aCents);
+    B = clampCents(bCents);
+    ui.inA.value = formatMoney(A);
+    ui.inB.value = formatMoney(B);
+    showErr("");
+    if (B > A){
+      showErr("Adjusted: For subtraction, B must be ≤ A. (Swap or reduce B.)");
+    }
+    renderAll();
+  }
+
+  /* =========================
+     Child panel logic
+     ========================= */
+  function setChildMsg(kind, text){
+    ui.childMsg.className = "childMsg " + kind;
+    ui.childMsg.textContent = text;
+    ui.childMsg.style.display = "block";
+  }
+
+  function checkChildAnswer(){
+    resumeAudioIfNeeded();
+    const raw = String(ui.childAns.value ?? "").trim();
+    if (!raw){
+      setChildMsg("bad", "Type your answer first 🙂");
+      playClick();
+      return;
+    }
+
+    const s = raw.replace(/\$/g,"").replace(/,/g,"").trim();
+    if (!/^\d{1,4}\.\d{2}$/.test(s)){
+      setChildMsg("bad", "Please type 2 decimal places (e.g., 0.80, 21.35).");
+      playClick();
+      return;
+    }
+
+    const parsed = parseMoneyToCents(s);
+    if (!parsed.ok){
+      setChildMsg("bad", "Please type 2 decimal places (e.g., 0.80, 21.35).");
+      playClick();
+      return;
+    }
+
+    if (B > A){
+      setChildMsg("bad", "Make sure B is not bigger than A (no negative answers).");
+      playClick();
+      pulseTeachingPanel();
+      return;
+    }
+
+    const guess = parsed.cents;
+    const correct = clampCents(A - B);
+
+    if (guess === correct){
+      setChildMsg("ok", "🎉 Correct! Well done!");
+      playClick();
+      playClap();
+      burstConfetti();
+    } else {
+      setChildMsg("bad", "Not yet. Subtract step-by-step and borrow when needed, then try again.");
+      playClick();
+      pulseTeachingPanel();
+    }
+  }
+
+  /* =========================
+     Events
+     ========================= */
+  ui.btnRandom.addEventListener("click", () => {
+    showErr("");
+    const maxD = ui.digitsSel.value || "999.95";
+    // generate A then B ≤ A
+    const a = randomAmountCents(maxD);
+    const b = randomAmountCents(Math.min(parseFloat(maxD||"999.95"), a/100));
+    const bb = Math.min(b, a);
+    applyNumbers(a, bb);
+  });
+
+  ui.btnApply.addEventListener("click", () => {
+    showErr("");
+    const pa = parseMoneyToCents(ui.inA.value);
+    const pb = parseMoneyToCents(ui.inB.value);
+
+    if (!pa.ok || !pb.ok){
+      showErr("Please type amounts like 12.75 (two decimal places).");
+      return;
+    }
+    if (pa.adjusted || pb.adjusted){
+      showErr("Adjusted to the nearest 5 cents (last digit must be 0 or 5).");
+    }
+    if (pb.cents > pa.cents){
+      showErr("For subtraction, B must be ≤ A. Please reduce B or swap A/B.");
+      // still apply so you can see the issue, but block stepping later
+    }
+    applyNumbers(pa.cents, pb.cents);
+  });
+
+  ui.btnSwap.addEventListener("click", () => {
+    showErr("");
+    const tmp = A; A = B; B = tmp;
+    ui.inA.value = formatMoney(A);
+    ui.inB.value = formatMoney(B);
+    renderAll();
+  });
+
+  ui.btnReset.addEventListener("click", () => { showErr(""); renderAll(); });
+  ui.btnNext.addEventListener("click", () => doNextStep());
+
+  ui.btnChildCheck.addEventListener("click", checkChildAnswer);
+  ui.childAns.addEventListener("keydown", (e) => { if (e.key === "Enter") checkChildAnswer(); });
+
+  window.addEventListener("resize", () => {
+    requestAnimationFrame(() => { fitAllPiles(); fitAlgo(); });
+  });
+
+  /* =========================
+     INIT
+     ========================= */
+  ui.inA.value = "12.75";
+  ui.inB.value = "8.60";
+  renderAll();
+})();
+</script>
+
+</body>
+</html>
