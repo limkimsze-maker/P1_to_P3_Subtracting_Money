@@ -1,40 +1,987 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <!-- Money Subtraction (SGD) — Step-by-step | Designed by Lim Kim Sze © 2026 -->
+  <!-- /standard (Kim Sze) | Designed by Lim Kim Sze © 2026 -->
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-  <title>Subtraction — Money Algorithm (SGD, Step-by-step)</title>
+  <title>Addition — Money Algorithm (Simple Coins Only)</title>
 
   <!-- Favicon (Kim Sze standard) -->
   <link rel="icon" href="./kimsze_sharp16.ico?v=20260111a" sizes="any">
   <link rel="shortcut icon" href="./kimsze_sharp16.ico?v=20260111a">
 
   <!-- Counter.dev (Kim Sze standard) -->
-  <script src="https://cdn.counter.dev/script.js"
-          data-id="825e93b6-ce99-40ef-8bcc-125f13297433"
-          data-utcoffset="8"></script>
+  <script src="https://cdn.counter.dev/script.js" data-id="YOUR_COUNTERDEV_ID" data-utcoffset="8"></script>
+
+  <!-- ✅ Always-Clear on Load (Default Build Contract) -->
+  <script>
+  (function(){
+    const ACTIVITY_ID = (window.ACTIVITY_ID || (location.origin + location.pathname));
+    try{
+      const del = [];
+      for(let i=0;i<localStorage.length;i++){
+        const k = localStorage.key(i);
+        if(!k) continue;
+        if(k === ACTIVITY_ID) del.push(k);
+        if(k.startsWith(ACTIVITY_ID+"::")) del.push(k);
+        if(k.startsWith("sls_scope::"+ACTIVITY_ID)) del.push(k);
+        if(k.startsWith("UFCO-firstSubmit::"+ACTIVITY_ID)) del.push(k);
+        if(k.startsWith("sls_unlike_payload::"+ACTIVITY_ID)) del.push(k);
+      }
+      del.forEach(k=>localStorage.removeItem(k));
+      // common session flags
+      sessionStorage.removeItem("unlockedAudio");
+    }catch(e){}
+    // broadcast clear to sibling tabs (best-effort)
+    try{
+      const bc = new BroadcastChannel("xapi-state");
+      bc.postMessage({type:"clear", activityId:ACTIVITY_ID, ts:Date.now()});
+      bc.close();
+    }catch(e){}
+  })();
+  </script>
 
   <style>
     :root{
-      --bg:#ffffff;
-      --ink:#0f172a;
-      --muted:#64748b;
-      --line:#e2e8f0;
-
+      --bg1:#eef2ff;
+      --bg2:#e0f2fe;
       --card:#ffffff;
-      --shadow:0 14px 30px rgba(2,6,23,.10);
-      --radius:22px;
+      --ink:#0f172a;
+      --muted:#475569;
+      --line:#e5e7eb;
 
-      --topbarH: 62px;
-      --gap: 14px;
-      --maxW: 1400px;
+      --good:#16a34a;
+      --bad:#dc2626;
 
-      --moveDur: 550ms;
-      --ease: cubic-bezier(.2,.85,.2,1);
+      --shadow: 0 18px 50px rgba(2,6,23,.14);
+      --r:22px;
 
-      /* ✅ ALIGNMENT FIX: unify token “face” height
-         5¢ / 10¢ / $1 now align with $10/$50/$100 notes */
+      --note100:#60a5fa;
+      --note10:#fb7185;
+      --note1:#34d399;
+
+      --coin10:#fbbf24;
+      --coin5:#f59e0b;
+
+      --carry:#111827;
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      color:var(--ink);
+      background: radial-gradient(1200px 700px at 20% 10%, var(--bg2), transparent 60%),
+                  radial-gradient(1200px 700px at 80% 20%, var(--bg1), transparent 60%),
+                  linear-gradient(180deg, #f8fafc, #eef2ff);
+      min-height:100vh;
+      overflow:hidden;
+    }
+
+    .app{
+      height:100vh;
+      display:flex;
+      gap:14px;
+      padding:14px;
+    }
+
+    .left{
+      flex: 1 1 auto;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      min-width:0;
+    }
+
+    .right{
+      width: min(420px, 38vw);
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      min-width: 320px;
+    }
+
+    .card{
+      background:rgba(255,255,255,.92);
+      border:1px solid rgba(226,232,240,.9);
+      border-radius:var(--r);
+      box-shadow: var(--shadow);
+      padding:12px 12px 10px;
+      overflow:hidden;
+    }
+
+    .topbar{
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+      justify-content:space-between;
+      flex-wrap:wrap;
+    }
+
+    h1{
+      font-size:18px;
+      margin:0 0 2px;
+      letter-spacing:.2px;
+    }
+    .sub{
+      margin:0;
+      color:var(--muted);
+      font-size:12.5px;
+      line-height:1.25;
+    }
+
+    .controls{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+      align-items:end;
+      margin-top:10px;
+    }
+
+    .field label{
+      display:block;
+      font-size:12px;
+      color:var(--muted);
+      margin:0 0 4px;
+    }
+    input[type="text"], input[type="number"]{
+      width:100%;
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:10px 10px;
+      font-size:16px;
+      outline:none;
+      background:#fff;
+    }
+    input:focus{border-color:#94a3b8; box-shadow:0 0 0 3px rgba(99,102,241,.12);}
+
+    .btnRow{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      margin-top:10px;
+      align-items:center;
+    }
+    button{
+      border:none;
+      border-radius:16px;
+      padding:10px 12px;
+      font-weight:800;
+      cursor:pointer;
+      background:#111827;
+      color:#fff;
+      box-shadow: 0 12px 26px rgba(2,6,23,.18);
+    }
+    button.secondary{
+      background:#f1f5f9;
+      color:#111827;
+      box-shadow:none;
+      border:1px solid #e2e8f0;
+    }
+    button:disabled{
+      opacity:.5;
+      cursor:not-allowed;
+    }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border-radius:999px;
+      background:#f1f5f9;
+      border:1px solid #e2e8f0;
+      color:#111827;
+      font-weight:800;
+      font-size:13px;
+    }
+
+    /* === MAT === */
+    .matWrap{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      min-height:0;
+    }
+
+    .matTitle{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    .grid{
+      border:1px solid #dbeafe;
+      border-radius:18px;
+      overflow:hidden;
+      background:linear-gradient(180deg, rgba(255,255,255,.9), rgba(248,250,252,.85));
+    }
+
+    .gridHeader{
+      display:grid;
+      grid-template-columns: 120px repeat(5, 1fr);
+      background:linear-gradient(90deg, #e0f2fe, #eef2ff);
+      border-bottom:1px solid #dbeafe;
+    }
+    .hcell{
+      padding:10px 8px;
+      font-weight:900;
+      text-align:center;
+      border-right:1px solid rgba(219,234,254,.9);
+      font-size:13px;
+    }
+    .hcell:first-child{
+      text-align:left;
+      padding-left:12px;
+    }
+    .hcell:last-child{border-right:none;}
+
+    .row{
+      display:grid;
+      grid-template-columns: 120px repeat(5, 1fr);
+      border-bottom:1px solid rgba(219,234,254,.9);
+      min-height:110px;
+      background:rgba(255,255,255,.72);
+      position:relative;
+    }
+    .row:last-child{border-bottom:none;}
+
+    .labelCell{
+      padding:10px 10px 10px 12px;
+      font-weight:900;
+      color:#0f172a;
+      border-right:1px solid rgba(219,234,254,.9);
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      gap:6px;
+    }
+    .small{
+      font-size:12px;
+      font-weight:800;
+      color:var(--muted);
+    }
+
+    .cell{
+      position:relative;
+      border-right:1px solid rgba(219,234,254,.9);
+      padding:8px;
+      display:flex;
+      align-items:flex-end;
+      justify-content:center;
+      overflow:visible;
+      min-height:110px;
+    }
+    .cell:last-child{border-right:none;}
+
+    /* stacking goes UP like notes */
+    .stack{
+      display:flex;
+      flex-direction:column-reverse; /* newest appears on top visually */
+      gap:6px;
+      align-items:center;
+      justify-content:flex-end;
+      width:100%;
+      padding-bottom:2px;
+    }
+
+    /* tokens */
+    .note{
+      width:min(92%, 130px);
+      height:30px;
+      border-radius:10px;
+      border:2px solid rgba(15,23,42,.25);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:1000;
+      color:#0b1220;
+      text-shadow:0 1px 0 rgba(255,255,255,.55);
+      box-shadow: 0 8px 14px rgba(2,6,23,.12);
+    }
+    .note.n100{ background: linear-gradient(180deg, rgba(96,165,250,.95), rgba(59,130,246,.82));}
+    .note.n10 { background: linear-gradient(180deg, rgba(251,113,133,.95), rgba(244,63,94,.82));}
+    .note.n1  { background: linear-gradient(180deg, rgba(52,211,153,.95), rgba(16,185,129,.82));}
+
+    .coin{
+      width:54px;
+      height:54px;
+      border-radius:999px;
+      border:3px solid rgba(15,23,42,.28);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:1000;
+      color:#0b1220;
+      box-shadow: 0 10px 18px rgba(2,6,23,.14);
+    }
+    .coin.c10{ background: radial-gradient(circle at 30% 25%, rgba(255,255,255,.85), rgba(251,191,36,.95) 42%, rgba(245,158,11,.9) 100%); }
+    .coin.c5 { background: radial-gradient(circle at 30% 25%, rgba(255,255,255,.85), rgba(245,158,11,.95) 42%, rgba(217,119,6,.9) 100%); }
+
+    /* carry bubbles (shown above the column) */
+    .carry{
+      position:absolute;
+      top:6px;
+      right:8px;
+      width:28px;height:28px;
+      border-radius:999px;
+      background:#111827;
+      color:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:1000;
+      font-size:14px;
+      box-shadow: 0 10px 18px rgba(2,6,23,.18);
+      opacity:0;
+      transform: translateY(-6px);
+      transition: .18s ease;
+      pointer-events:none;
+      z-index:5;
+    }
+    .carry.show{
+      opacity:1;
+      transform: translateY(0);
+    }
+
+    /* highlight active column */
+    .cell.active{
+      outline: 4px solid rgba(99,102,241,.20);
+      background: rgba(224,231,255,.45);
+    }
+
+    /* === ALGORITHM PANEL: FORCE VISIBLE === */
+    #algorithm{
+      display:block !important;
+      opacity:1 !important;
+      visibility:visible !important;
+      position:relative;
+      z-index:999;
+    }
+    .algoTitle{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin:0 0 8px;
+    }
+    .algoTitle h2{
+      font-size:16px;
+      margin:0;
+    }
+    .stepLine{
+      padding:10px 10px;
+      border-radius:14px;
+      border:1px solid #e2e8f0;
+      background:#fff;
+      margin:8px 0;
+      line-height:1.25;
+      font-weight:800;
+      color:#111827;
+    }
+    .stepLine small{
+      display:block;
+      font-weight:900;
+      color:#64748b;
+      margin-bottom:4px;
+      font-size:12px;
+    }
+    .stepLine.current{
+      border-color: rgba(99,102,241,.35);
+      box-shadow: 0 0 0 4px rgba(99,102,241,.10);
+    }
+
+    .footer{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:8px;
+      color:#64748b;
+      font-size:12px;
+      font-weight:800;
+    }
+
+    /* mobile layout */
+    @media (max-width: 980px){
+      body{overflow:auto;}
+      .app{height:auto; flex-direction:column;}
+      .right{width:100%; min-width:0;}
+      .gridHeader, .row{grid-template-columns: 110px repeat(5, 1fr);}
+      .row{min-height:100px;}
+      .cell{min-height:100px;}
+      .coin{width:50px;height:50px;}
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <div class="left">
+      <div class="card">
+        <div class="topbar">
+          <div>
+            <h1>Addition — Money Algorithm (Simple Coins)</h1>
+            <p class="sub">
+              Denominations used: <b>$100, $10, $1, 10¢, 5¢</b> only.
+              Enter two amounts (multiples of 5¢), then step through the regrouping algorithm.
+            </p>
+          </div>
+          <div class="pill" id="statusPill">Step: <span id="stepLabel" style="margin-left:6px;">Ready</span></div>
+        </div>
+
+        <div class="controls">
+          <div class="field">
+            <label for="aAmt">Amount A (e.g., 18.35)</label>
+            <input id="aAmt" type="text" inputmode="decimal" value="18.35"/>
+          </div>
+          <div class="field">
+            <label for="bAmt">Amount B (e.g., 7.70)</label>
+            <input id="bAmt" type="text" inputmode="decimal" value="7.70"/>
+          </div>
+        </div>
+
+        <div class="btnRow">
+          <button id="buildBtn">Build Mat</button>
+          <button class="secondary" id="resetBtn">Reset</button>
+
+          <span style="flex:1 1 auto"></span>
+
+          <button class="secondary" id="unlockAudioBtn" title="Tap once before sounds can play on mobile">🔊 Unlock Sound</button>
+          <label class="pill" style="cursor:pointer;">
+            <input id="soundOn" type="checkbox" checked style="width:auto; margin:0 6px 0 0;">
+            Sound On
+          </label>
+        </div>
+      </div>
+
+      <div class="card matWrap">
+        <div class="matTitle">
+          <div>
+            <div style="font-weight:1000;">Place Value Mat</div>
+            <div class="sub" id="hintText">Build the mat first. Then press Next Step.</div>
+          </div>
+          <div class="btnRow" style="margin:0;">
+            <button class="secondary" id="prevBtn" disabled>◀ Back</button>
+            <button id="nextBtn" disabled>Next ▶</button>
+          </div>
+        </div>
+
+        <div class="grid" id="grid">
+          <div class="gridHeader">
+            <div class="hcell">Row</div>
+            <div class="hcell">$100</div>
+            <div class="hcell">$10</div>
+            <div class="hcell">$1</div>
+            <div class="hcell">10¢</div>
+            <div class="hcell">5¢</div>
+          </div>
+
+          <div class="row" data-row="A">
+            <div class="labelCell">
+              <div>Amount A</div>
+              <div class="small" id="aPretty">—</div>
+            </div>
+            <div class="cell" data-col="100"><div class="carry" id="carry100A"> </div><div class="stack" id="A100"></div></div>
+            <div class="cell" data-col="10"><div class="carry" id="carry10A"> </div><div class="stack" id="A10"></div></div>
+            <div class="cell" data-col="1"><div class="carry" id="carry1A"> </div><div class="stack" id="A1"></div></div>
+            <div class="cell" data-col="10c"><div class="carry" id="carry10cA"> </div><div class="stack" id="A10c"></div></div>
+            <div class="cell" data-col="5c"><div class="carry" id="carry5cA"> </div><div class="stack" id="A5c"></div></div>
+          </div>
+
+          <div class="row" data-row="B">
+            <div class="labelCell">
+              <div>Amount B</div>
+              <div class="small" id="bPretty">—</div>
+            </div>
+            <div class="cell" data-col="100"><div class="carry" id="carry100B"> </div><div class="stack" id="B100"></div></div>
+            <div class="cell" data-col="10"><div class="carry" id="carry10B"> </div><div class="stack" id="B10"></div></div>
+            <div class="cell" data-col="1"><div class="carry" id="carry1B"> </div><div class="stack" id="B1"></div></div>
+            <div class="cell" data-col="10c"><div class="carry" id="carry10cB"> </div><div class="stack" id="B10c"></div></div>
+            <div class="cell" data-col="5c"><div class="carry" id="carry5cB"> </div><div class="stack" id="B5c"></div></div>
+          </div>
+
+          <div class="row" data-row="T">
+            <div class="labelCell">
+              <div>Total</div>
+              <div class="small" id="tPretty">—</div>
+            </div>
+            <div class="cell" data-col="100"><div class="carry" id="carry100T"> </div><div class="stack" id="T100"></div></div>
+            <div class="cell" data-col="10"><div class="carry" id="carry10T"> </div><div class="stack" id="T10"></div></div>
+            <div class="cell" data-col="1"><div class="carry" id="carry1T"> </div><div class="stack" id="T1"></div></div>
+            <div class="cell" data-col="10c"><div class="carry" id="carry10cT"> </div><div class="stack" id="T10c"></div></div>
+            <div class="cell" data-col="5c"><div class="carry" id="carry5cT"> </div><div class="stack" id="T5c"></div></div>
+          </div>
+        </div>
+
+        <div class="footer">
+          <div>Only these are used: $100, $10, $1, 10¢, 5¢.</div>
+          <div><b>Designed by Lim Kim Sze © 2026</b></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="card" id="algorithm">
+        <div class="algoTitle">
+          <h2>Algorithm</h2>
+          <span class="pill">Carry: <span id="carryText" style="margin-left:6px;">—</span></span>
+        </div>
+
+        <div id="algoSteps"></div>
+
+        <div class="btnRow" style="margin-top:10px;">
+          <button class="secondary" id="showAllBtn">Show All Steps</button>
+          <button class="secondary" id="hideAllBtn">Focus Current Step</button>
+        </div>
+
+        <p class="sub" style="margin:10px 0 0;">
+          Tip: Start from <b>5¢</b> → <b>10¢</b> → <b>$1</b> → <b>$10</b> → <b>$100</b>.
+        </p>
+      </div>
+
+      <div class="card">
+        <div style="font-weight:1000; margin-bottom:6px;">Sound Kit</div>
+        <p class="sub" style="margin-top:0;">
+          If audio doesn’t play on mobile, press <b>Unlock Sound</b> once.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audio (expects these files in same folder; safe if missing) -->
+  <audio id="sndCorrect" src="./correct.mp3" preload="auto"></audio>
+  <audio id="sndWrong" src="./wrong.mp3" preload="auto"></audio>
+  <audio id="sndClock" src="./clock.mp3" preload="auto"></audio>
+
+  <script>
+    // === Denominations (ONLY THESE) ===
+    // Values in cents
+    const DENOMS = [
+      { key:"100",  value:10000, label:"$100", type:"note", cls:"n100" },
+      { key:"10",   value:1000,  label:"$10",  type:"note", cls:"n10"  },
+      { key:"1",    value:100,   label:"$1",   type:"note", cls:"n1"   },
+      { key:"10c",  value:10,    label:"10¢",  type:"coin", cls:"c10"  },
+      { key:"5c",   value:5,     label:"5¢",   type:"coin", cls:"c5"   },
+    ];
+
+    const colsOrder = ["5c","10c","1","10","100"]; // algorithm order
+    const colIdToStack = (row, col) => document.getElementById(row + col);
+
+    const els = {
+      aAmt: document.getElementById("aAmt"),
+      bAmt: document.getElementById("bAmt"),
+      buildBtn: document.getElementById("buildBtn"),
+      resetBtn: document.getElementById("resetBtn"),
+      prevBtn: document.getElementById("prevBtn"),
+      nextBtn: document.getElementById("nextBtn"),
+      stepLabel: document.getElementById("stepLabel"),
+      hintText: document.getElementById("hintText"),
+      aPretty: document.getElementById("aPretty"),
+      bPretty: document.getElementById("bPretty"),
+      tPretty: document.getElementById("tPretty"),
+      algoSteps: document.getElementById("algoSteps"),
+      carryText: document.getElementById("carryText"),
+      showAllBtn: document.getElementById("showAllBtn"),
+      hideAllBtn: document.getElementById("hideAllBtn"),
+      statusPill: document.getElementById("statusPill"),
+      unlockAudioBtn: document.getElementById("unlockAudioBtn"),
+      soundOn: document.getElementById("soundOn"),
+      sndCorrect: document.getElementById("sndCorrect"),
+      sndWrong: document.getElementById("sndWrong"),
+      sndClock: document.getElementById("sndClock"),
+    };
+
+    let state = null;
+
+    function clampTo5c(cents){
+      // ensure multiples of 5 cents
+      return Math.round(cents/5)*5;
+    }
+
+    function parseAmountToCents(s){
+      // accepts "18.35", "$18.35", "18", "18.3" -> cents
+      s = String(s||"").trim().replace(/\$/g,"");
+      if(!s) return NaN;
+      if(!/^\d+(\.\d{0,2})?$/.test(s)) return NaN;
+      const parts = s.split(".");
+      const dollars = parseInt(parts[0]||"0",10);
+      const cents = parseInt((parts[1]||"").padEnd(2,"0").slice(0,2)||"0",10);
+      return dollars*100 + cents;
+    }
+
+    function centsToPretty(c){
+      const sign = c<0 ? "-" : "";
+      c = Math.abs(c);
+      const d = Math.floor(c/100);
+      const cc = String(c%100).padStart(2,"0");
+      return `${sign}$${d}.${cc}`;
+    }
+
+    function decomposeCentsToCounts(cents){
+      // greedy using DENOMS (works because 100,10,1,10c,5c is canonical for multiples of 5c)
+      const out = { "100":0, "10":0, "1":0, "10c":0, "5c":0 };
+      let rem = cents;
+      for(const d of DENOMS){
+        const n = Math.floor(rem / d.value);
+        out[d.key] = n;
+        rem -= n*d.value;
+      }
+      // rem should be 0 if multiple of 5c
+      return out;
+    }
+
+    function clearAllStacks(){
+      ["A","B","T"].forEach(r=>{
+        ["100","10","1","10c","5c"].forEach(c=>{
+          const el = document.getElementById(r+c);
+          if(el) el.innerHTML = "";
+        });
+      });
+    }
+
+    function tokenEl(denomKey){
+      const d = DENOMS.find(x=>x.key===denomKey);
+      if(!d) return document.createElement("div");
+      const div = document.createElement("div");
+      if(d.type==="note"){
+        div.className = `note ${d.cls}`;
+        div.textContent = d.label;
+      }else{
+        div.className = `coin ${d.cls}`;
+        div.textContent = d.label;
+      }
+      return div;
+    }
+
+    function renderRow(rowKey, counts){
+      // counts keys: "100","10","1","10c","5c"
+      ["100","10","1","10c","5c"].forEach(k=>{
+        const stack = document.getElementById(rowKey+k);
+        if(!stack) return;
+        stack.innerHTML = "";
+        const n = counts[k]||0;
+        for(let i=0;i<n;i++){
+          stack.appendChild(tokenEl(k));
+        }
+      });
+    }
+
+    function setActiveCol(colKey){
+      document.querySelectorAll(".cell").forEach(c=>c.classList.remove("active"));
+      document.querySelectorAll(`.cell[data-col="${colKey}"]`).forEach(c=>c.classList.add("active"));
+    }
+
+    function hideAllCarry(){
+      document.querySelectorAll(".carry").forEach(c=>c.classList.remove("show"));
+    }
+
+    function showCarryOnTotal(colKey, val){
+      // show carry bubble in TOTAL row, on that column (as a reminder)
+      const map = { "5c":"carry5cT", "10c":"carry10cT", "1":"carry1T", "10":"carry10T", "100":"carry100T" };
+      const id = map[colKey];
+      if(!id) return;
+      const el = document.getElementById(id);
+      if(!el) return;
+      el.textContent = String(val);
+      el.classList.add("show");
+    }
+
+    function playSound(which){
+      if(!els.soundOn.checked) return;
+      try{
+        if(which==="correct") els.sndCorrect.currentTime = 0, els.sndCorrect.play();
+        if(which==="wrong") els.sndWrong.currentTime = 0, els.sndWrong.play();
+        if(which==="clock") els.sndClock.currentTime = 0, els.sndClock.play();
+      }catch(e){}
+    }
+
+    function unlockAudio(){
+      // mobile unlock: play/pause silent-ish quickly
+      const a = els.sndCorrect;
+      if(!a) return;
+      a.volume = 0.001;
+      a.play().then(()=>{
+        a.pause();
+        a.currentTime = 0;
+        a.volume = 1;
+        sessionStorage.setItem("unlockedAudio","1");
+        els.unlockAudioBtn.textContent = "🔊 Sound Unlocked";
+      }).catch(()=>{
+        els.unlockAudioBtn.textContent = "🔊 Tap Again";
+      });
+    }
+
+    // Build algorithm steps text
+    function buildAlgoText(stepIndex, carryObj){
+      // stepIndex: -1 = ready; 0..4
+      const steps = [
+        {
+          title: "Step 1 — Add 5¢",
+          body: "Add the 5¢ coins. If you get 2×5¢, regroup into 1×10¢."
+        },
+        {
+          title: "Step 2 — Add 10¢",
+          body: "Add the 10¢ coins (including any regrouped 10¢). If you get 10×10¢ = 100¢, regroup into 1×$1."
+        },
+        {
+          title: "Step 3 — Add $1",
+          body: "Add the $1 notes (including any regrouped $1). If you get 10×$1, regroup into 1×$10."
+        },
+        {
+          title: "Step 4 — Add $10",
+          body: "Add the $10 notes (including any regrouped $10). If you get 10×$10, regroup into 1×$100."
+        },
+        {
+          title: "Step 5 — Add $100",
+          body: "Add the $100 notes (including any regrouped $100). Read the final total."
+        }
+      ];
+
+      const carryStr = (() => {
+        if(!carryObj) return "—";
+        const parts = [];
+        if(carryObj["10c"]) parts.push(`to 10¢: ${carryObj["10c"]}`);
+        if(carryObj["1"]) parts.push(`to $1: ${carryObj["1"]}`);
+        if(carryObj["10"]) parts.push(`to $10: ${carryObj["10"]}`);
+        if(carryObj["100"]) parts.push(`to $100: ${carryObj["100"]}`);
+        return parts.length ? parts.join(" • ") : "—";
+      })();
+      els.carryText.textContent = carryStr;
+
+      els.algoSteps.innerHTML = steps.map((s,i)=>{
+        const isCurrent = (i===stepIndex);
+        return `
+          <div class="stepLine ${isCurrent ? "current":""}" data-step="${i}">
+            <small>${s.title}</small>
+            ${s.body}
+          </div>
+        `;
+      }).join("");
+    }
+
+    function focusCurrentStep(stepIndex){
+      document.querySelectorAll(".stepLine").forEach((el, i)=>{
+        el.style.display = (i===stepIndex) ? "block" : "none";
+      });
+    }
+
+    function showAllSteps(){
+      document.querySelectorAll(".stepLine").forEach(el=>el.style.display="block");
+    }
+
+    function computeTotalAtStep(step){
+      // step: -1 means no totals yet; otherwise totals built progressively
+      const A = state.Acounts;
+      const B = state.Bcounts;
+
+      const T = { "100":0, "10":0, "1":0, "10c":0, "5c":0 };
+      const carry = { "10c":0, "1":0, "10":0, "100":0 };
+
+      // helper to set T columns up to current step
+      // order: 5c (0), 10c (1), 1 (2), 10 (3), 100 (4)
+
+      // Step 1: 5c
+      if(step >= 0){
+        const sum5 = (A["5c"]||0) + (B["5c"]||0);
+        carry["10c"] = Math.floor(sum5 / 2); // 2x5c -> 1x10c
+        T["5c"] = sum5 % 2;
+      }
+
+      // Step 2: 10c
+      if(step >= 1){
+        const sum10c = (A["10c"]||0) + (B["10c"]||0) + carry["10c"];
+        carry["1"] = Math.floor(sum10c / 10); // 10x10c -> 1 dollar
+        T["10c"] = sum10c % 10;
+      }
+
+      // Step 3: $1
+      if(step >= 2){
+        const sum1 = (A["1"]||0) + (B["1"]||0) + carry["1"];
+        carry["10"] = Math.floor(sum1 / 10);
+        T["1"] = sum1 % 10;
+      }
+
+      // Step 4: $10
+      if(step >= 3){
+        const sum10 = (A["10"]||0) + (B["10"]||0) + carry["10"];
+        carry["100"] = Math.floor(sum10 / 10);
+        T["10"] = sum10 % 10;
+      }
+
+      // Step 5: $100
+      if(step >= 4){
+        const sum100 = (A["100"]||0) + (B["100"]||0) + carry["100"];
+        T["100"] = sum100;
+      }
+
+      return {T, carry};
+    }
+
+    function countsToCents(counts){
+      let total = 0;
+      for(const d of DENOMS){
+        total += (counts[d.key]||0) * d.value;
+      }
+      return total;
+    }
+
+    function updateUIForStep(){
+      hideAllCarry();
+      const step = state.step;
+      const orderCol = colsOrder[Math.max(0, Math.min(step, colsOrder.length-1))] || "5c";
+      setActiveCol(orderCol);
+
+      if(step < 0){
+        els.stepLabel.textContent = "Ready";
+        els.hintText.textContent = "Press Next to begin the algorithm from 5¢.";
+        renderRow("T", {"100":0,"10":0,"1":0,"10c":0,"5c":0});
+        els.tPretty.textContent = "—";
+        buildAlgoText(-1, null);
+        els.prevBtn.disabled = true;
+        els.nextBtn.disabled = false;
+        return;
+      }
+
+      els.stepLabel.textContent = `Step ${step+1} of 5`;
+      els.hintText.textContent = "Follow the highlighted column and regroup when needed.";
+
+      const {T, carry} = computeTotalAtStep(step);
+      renderRow("T", T);
+
+      // show carry bubble on the *next* column after each step
+      if(step === 0 && carry["10c"]) showCarryOnTotal("10c", carry["10c"]);
+      if(step === 1 && carry["1"])   showCarryOnTotal("1", carry["1"]);
+      if(step === 2 && carry["10"])  showCarryOnTotal("10", carry["10"]);
+      if(step === 3 && carry["100"]) showCarryOnTotal("100", carry["100"]);
+
+      // total pretty only at final step
+      if(step >= 4){
+        const totalCents = countsToCents(T);
+        els.tPretty.textContent = centsToPretty(totalCents);
+        playSound("correct");
+      }else{
+        els.tPretty.textContent = "…";
+      }
+
+      buildAlgoText(step, carry);
+
+      // button states
+      els.prevBtn.disabled = (step <= 0);
+      els.nextBtn.disabled = (step >= 4);
+    }
+
+    function buildMat(){
+      const aC = parseAmountToCents(els.aAmt.value);
+      const bC = parseAmountToCents(els.bAmt.value);
+
+      if(!Number.isFinite(aC) || !Number.isFinite(bC)){
+        alert("Please enter valid amounts like 18.35 (numbers only, optional decimal).");
+        return;
+      }
+
+      const aC5 = clampTo5c(aC);
+      const bC5 = clampTo5c(bC);
+
+      // must be multiples of 5 cents exactly (after rounding we accept)
+      if(aC5 !== aC || bC5 !== bC){
+        // accept but also reflect rounded
+        els.aAmt.value = (aC5/100).toFixed(2);
+        els.bAmt.value = (bC5/100).toFixed(2);
+      }
+
+      const Acounts = decomposeCentsToCounts(aC5);
+      const Bcounts = decomposeCentsToCounts(bC5);
+
+      state = { A: aC5, B: bC5, Acounts, Bcounts, step: -1 };
+
+      clearAllStacks();
+      renderRow("A", Acounts);
+      renderRow("B", Bcounts);
+
+      els.aPretty.textContent = centsToPretty(aC5);
+      els.bPretty.textContent = centsToPretty(bC5);
+      els.tPretty.textContent = "—";
+
+      els.nextBtn.disabled = false;
+      els.prevBtn.disabled = true;
+
+      showAllSteps();
+      buildAlgoText(-1, null);
+      focusCurrentStep(0); // will be overridden when stepping
+      showAllSteps();      // start with all visible
+      els.hintText.textContent = "Mat built. Press Next to begin (start from 5¢).";
+      els.stepLabel.textContent = "Ready";
+
+      // remove active highlight
+      document.querySelectorAll(".cell").forEach(c=>c.classList.remove("active"));
+      setActiveCol("5c");
+    }
+
+    function resetAll(){
+      state = null;
+      clearAllStacks();
+      els.aPretty.textContent = "—";
+      els.bPretty.textContent = "—";
+      els.tPretty.textContent = "—";
+      els.stepLabel.textContent = "Ready";
+      els.hintText.textContent = "Build the mat first. Then press Next Step.";
+      els.nextBtn.disabled = true;
+      els.prevBtn.disabled = true;
+      hideAllCarry();
+      document.querySelectorAll(".cell").forEach(c=>c.classList.remove("active"));
+      els.algoSteps.innerHTML = "";
+      els.carryText.textContent = "—";
+      els.statusPill.style.background = "#f1f5f9";
+    }
+
+    function nextStep(){
+      if(!state) return;
+      if(state.step < 4) state.step++;
+      updateUIForStep();
+      // focus current step if user chose focus mode (we use a flag by checking any hidden)
+      const anyHidden = Array.from(document.querySelectorAll(".stepLine")).some(el=>el.style.display==="none");
+      if(anyHidden) focusCurrentStep(state.step);
+    }
+
+    function prevStep(){
+      if(!state) return;
+      if(state.step > 0) state.step--;
+      updateUIForStep();
+      const anyHidden = Array.from(document.querySelectorAll(".stepLine")).some(el=>el.style.display==="none");
+      if(anyHidden) focusCurrentStep(state.step);
+    }
+
+    // Wire up
+    els.buildBtn.addEventListener("click", buildMat);
+    els.resetBtn.addEventListener("click", resetAll);
+    els.nextBtn.addEventListener("click", nextStep);
+    els.prevBtn.addEventListener("click", prevStep);
+
+    els.showAllBtn.addEventListener("click", ()=>{
+      showAllSteps();
+    });
+    els.hideAllBtn.addEventListener("click", ()=>{
+      if(!state) return;
+      focusCurrentStep(Math.max(0, state.step));
+    });
+
+    els.unlockAudioBtn.addEventListener("click", unlockAudio);
+
+    // Enter key builds mat
+    [els.aAmt, els.bAmt].forEach(inp=>{
+      inp.addEventListener("keydown", (e)=>{
+        if(e.key==="Enter") buildMat();
+      });
+    });
+
+    // Start clean
+    resetAll();
+  </script>
+</body>
+</html>         5¢ / 10¢ / $1 now align with $10/$50/$100 notes */
       --tokenH: 44px;
       --coinS: 44px;     /* coin width/height */
       --noteW: 78px;     /* note width */
